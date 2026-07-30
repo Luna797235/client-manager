@@ -244,7 +244,10 @@ mark{background:#fef9c3;color:inherit;padding:0 2px;border-radius:3px;}
       </div>
       <div class="fg" style="margin-bottom:16px;">
         <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">密码</label>
-        <input type="password" id="authPass" placeholder="请输入密码（至少6位）" style="width:100%;padding:13px 14px;border:1.5px solid #dbe7f0;border-radius:10px;font-size:15px;outline:none;transition:all .2s;" onfocus="this.style.borderColor='#0ea5e9';this.style.boxShadow='0 0 0 3px #e0f2fe'" onblur="this.style.borderColor='#dbe7f0';this.style.boxShadow='none'">
+        <div style="position:relative;">
+          <input type="password" id="authPass" placeholder="请输入密码（至少6位）" style="width:100%;padding:13px 44px 13px 14px;border:1.5px solid #dbe7f0;border-radius:10px;font-size:15px;outline:none;transition:all .2s;" onfocus="this.style.borderColor='#0ea5e9';this.style.boxShadow='0 0 0 3px #e0f2fe'" onblur="this.style.borderColor='#dbe7f0';this.style.boxShadow='none'">
+          <i class="bi bi-eye-slash" id="authPassEye" onclick="togglePass('authPass','authPassEye')" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:18px;color:#94a3b8;cursor:pointer;"></i>
+        </div>
       </div>
       <div id="authError" style="display:none;background:#fee2e2;color:#ef4444;padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:12px;"></div>
       <button onclick="doLogin()" style="width:100%;padding:14px;border:none;border-radius:10px;background:linear-gradient(135deg,#0ea5e9,#38bdf8);color:#fff;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.35);margin-bottom:10px;">登录</button>
@@ -257,11 +260,43 @@ mark{background:#fef9c3;color:inherit;padding:0 2px;border-radius:3px;}
   </div>
 </div>
 
+<!-- 修改密码弹窗 -->
+<div id="changePassOverlay" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:20px;padding:30px 24px;max-width:360px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
+    <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:20px;text-align:center;">修改密码</h3>
+    <div class="fg" style="margin-bottom:12px;">
+      <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">旧密码</label>
+      <div style="position:relative;">
+        <input type="password" id="oldPass" placeholder="请输入旧密码" style="width:100%;padding:13px 44px 13px 14px;border:1.5px solid #dbe7f0;border-radius:10px;font-size:15px;outline:none;">
+        <i class="bi bi-eye-slash" id="oldPassEye" onclick="togglePass('oldPass','oldPassEye')" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:18px;color:#94a3b8;cursor:pointer;"></i>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:12px;">
+      <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">新密码（至少6位）</label>
+      <div style="position:relative;">
+        <input type="password" id="newPass1" placeholder="请输入新密码" style="width:100%;padding:13px 44px 13px 14px;border:1.5px solid #dbe7f0;border-radius:10px;font-size:15px;outline:none;">
+        <i class="bi bi-eye-slash" id="newPass1Eye" onclick="togglePass('newPass1','newPass1Eye')" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:18px;color:#94a3b8;cursor:pointer;"></i>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:16px;">
+      <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">确认新密码</label>
+      <div style="position:relative;">
+        <input type="password" id="newPass2" placeholder="请再次输入新密码" style="width:100%;padding:13px 44px 13px 14px;border:1.5px solid #dbe7f0;border-radius:10px;font-size:15px;outline:none;">
+        <i class="bi bi-eye-slash" id="newPass2Eye" onclick="togglePass('newPass2','newPass2Eye')" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:18px;color:#94a3b8;cursor:pointer;"></i>
+      </div>
+    </div>
+    <div id="changePassError" style="display:none;background:#fee2e2;color:#ef4444;padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:12px;"></div>
+    <button onclick="doChangePass()" style="width:100%;padding:14px;border:none;border-radius:10px;background:linear-gradient(135deg,#0ea5e9,#38bdf8);color:#fff;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.35);margin-bottom:10px;">确认修改</button>
+    <button onclick="closeChangePass()" style="width:100%;padding:14px;border:1.5px solid #dbe7f0;border-radius:10px;background:#fff;color:#64748b;font-size:15px;cursor:pointer;">取消</button>
+  </div>
+</div>
+
 <!-- 顶部用户信息 -->
 <div id="userBar" style="display:none;background:#fff;border-bottom:1px solid #e8f0f5;padding:6px 16px;font-size:12px;color:#64748b;display:none;align-items:center;justify-content:space-between;">
   <span><i class="bi bi-person-circle" style="color:#0ea5e9;"></i> <span id="userBarName"></span></span>
   <span style="display:flex;align-items:center;gap:6px;">
     <span id="syncStatus" style="color:#10b981;font-size:11px;"><i class="bi bi-check-circle"></i> 已同步</span>
+    <button onclick="showChangePass()" style="border:none;background:none;color:#0ea5e9;font-size:12px;cursor:pointer;">改密码</button>
     <button onclick="logout()" style="border:none;background:none;color:#94a3b8;font-size:12px;cursor:pointer;">退出</button>
   </span>
 </div>
@@ -421,6 +456,57 @@ async function logout() {
   await sb.auth.signOut();
   currentUser = null;
   location.reload();
+}
+
+function togglePass(inputId, eyeId) {
+  const input = document.getElementById(inputId);
+  const eye = document.getElementById(eyeId);
+  if(input.type === 'password') {
+    input.type = 'text';
+    eye.className = 'bi bi-eye';
+  } else {
+    input.type = 'password';
+    eye.className = 'bi bi-eye-slash';
+  }
+}
+
+function showChangePass() {
+  document.getElementById('changePassOverlay').style.display = 'flex';
+}
+
+function closeChangePass() {
+  document.getElementById('changePassOverlay').style.display = 'none';
+  document.getElementById('oldPass').value = '';
+  document.getElementById('newPass1').value = '';
+  document.getElementById('newPass2').value = '';
+  document.getElementById('changePassError').style.display = 'none';
+}
+
+function showCPError(msg) {
+  const el = document.getElementById('changePassError');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(()=>el.style.display='none', 3000);
+}
+
+async function doChangePass() {
+  const oldP = document.getElementById('oldPass').value;
+  const newP1 = document.getElementById('newPass1').value;
+  const newP2 = document.getElementById('newPass2').value;
+  if(!oldP||!newP1||!newP2){showCPError('请填写所有字段');return;}
+  if(newP1.length<6){showCPError('新密码至少6位');return;}
+  if(newP1!==newP2){showCPError('两次新密码不一致');return;}
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    if(!user){showCPError('请先登录');return;}
+    const email = user.email;
+    const { error: loginErr } = await sb.auth.signInWithPassword({ email, password: oldP });
+    if(loginErr){showCPError('旧密码错误');return;}
+    const { data, error } = await sb.auth.updateUser({ password: newP1 });
+    if(error){showCPError('修改失败：'+error.message);return;}
+    closeChangePass();
+    alert('密码修改成功！下次登录请用新密码');
+  } catch(e){showCPError('修改失败：'+(e.message||e));}
 }
 
 function setSyncStatus(status) {
