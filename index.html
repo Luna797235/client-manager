@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- saved from url=(0049)https://webview.e2b.sh2.sandbox.cloudstudio.club/ -->
-<html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0ea5e9">
@@ -9,10 +9,11 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>客户管理工作台</title>
-<link rel="stylesheet" href="./index_files/bootstrap-icons.css">
-<script src="./index_files/Sortable.min.js.下载"></script>
-<script src="./index_files/xlsx.full.min.js.下载"></script>
-<script src="./index_files/supabase-js@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<script src="https://unpkg.com/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>if(!window.supabase){ document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>'); }</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
 :root{
@@ -239,11 +240,11 @@ mark{background:#fef9c3;color:inherit;padding:0 2px;border-radius:3px;}
     <div id="authForm">
       <div class="fg" style="margin-bottom:12px;">
         <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">用户名</label>
-        <input type="text" id="authUser" placeholder="请输入用户名" style="width:100%;padding:13px 14px;border:1.5px solid #dbe7f0;border-radius:10px;font-size:15px;outline:none;transition:all .2s;" onfocus="this.style.borderColor=&#39;#0ea5e9&#39;;this.style.boxShadow=&#39;0 0 0 3px #e0f2fe&#39;" onblur="this.style.borderColor=&#39;#dbe7f0&#39;;this.style.boxShadow=&#39;none&#39;">
+        <input type="text" id="authUser" placeholder="请输入用户名" style="width:100%;padding:13px 14px;border:1.5px solid #dbe7f0;border-radius:10px;font-size:15px;outline:none;transition:all .2s;" onfocus="this.style.borderColor='#0ea5e9';this.style.boxShadow='0 0 0 3px #e0f2fe'" onblur="this.style.borderColor='#dbe7f0';this.style.boxShadow='none'">
       </div>
       <div class="fg" style="margin-bottom:16px;">
         <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">密码</label>
-        <input type="password" id="authPass" placeholder="请输入密码（至少6位）" style="width:100%;padding:13px 14px;border:1.5px solid #dbe7f0;border-radius:10px;font-size:15px;outline:none;transition:all .2s;" onfocus="this.style.borderColor=&#39;#0ea5e9&#39;;this.style.boxShadow=&#39;0 0 0 3px #e0f2fe&#39;" onblur="this.style.borderColor=&#39;#dbe7f0&#39;;this.style.boxShadow=&#39;none&#39;">
+        <input type="password" id="authPass" placeholder="请输入密码（至少6位）" style="width:100%;padding:13px 14px;border:1.5px solid #dbe7f0;border-radius:10px;font-size:15px;outline:none;transition:all .2s;" onfocus="this.style.borderColor='#0ea5e9';this.style.boxShadow='0 0 0 3px #e0f2fe'" onblur="this.style.borderColor='#dbe7f0';this.style.boxShadow='none'">
       </div>
       <div id="authError" style="display:none;background:#fee2e2;color:#ef4444;padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:12px;"></div>
       <button onclick="doLogin()" style="width:100%;padding:14px;border:none;border-radius:10px;background:linear-gradient(135deg,#0ea5e9,#38bdf8);color:#fff;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.35);margin-bottom:10px;">登录</button>
@@ -330,7 +331,7 @@ async function doLogin() {
       return;
     }
     enterApp();
-  } catch(e) { showAuthError('网络错误，请重试'); }
+  } catch(e) { showAuthError('连接失败：' + (e.message || JSON.stringify(e))); }
 }
 
 async function doRegister() {
@@ -352,7 +353,7 @@ async function doRegister() {
     }
     // 注册成功，自动登录
     await doLogin();
-  } catch(e) { showAuthError('网络错误，请重试'); }
+  } catch(e) { showAuthError('注册连接失败：' + (e.message || JSON.stringify(e))); }
 }
 
 function showAuthError(msg) {
@@ -1607,6 +1608,5 @@ data = loadAndInit();
 checkAuth();
 console.log('%c客户管理工作台 v5 云端版已启动','color:#0ea5e9;font-weight:bold;');
 </script>
-
-
-</body></html>
+</body>
+</html>
