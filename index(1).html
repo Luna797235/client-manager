@@ -1,0 +1,1788 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0ea5e9">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>客户管理工作台</title>
+<link rel="stylesheet" href="https://unpkg.com/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<script src="https://unpkg.com/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>if(!window.supabase){ document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>'); }</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
+:root{
+  --sky:#0ea5e9;--sky-mid:#38bdf8;--sky-light:#e0f2fe;--sky-50:#f0f9ff;--sky-100:#e0f2fe;
+  --white:#ffffff;--bg:#f0f6fb;--text:#0f172a;--text-2:#475569;--text-3:#94a3b8;
+  --border:#dbe7f0;--border-l:#e8f0f5;--green:#10b981;--red:#ef4444;--amber:#f59e0b;
+  --r:14px;--r-sm:10px;
+}
+html,body{height:100%;overflow-x:hidden;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",sans-serif;
+  background:var(--bg);color:var(--text);line-height:1.5;font-size:15px;min-height:100vh;
+  -webkit-font-smoothing:antialiased;padding-bottom:env(safe-area-inset-bottom);
+}
+
+/* ===== 顶部 ===== */
+.header{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--border);padding:max(14px,env(safe-area-inset-top)) 16px 12px;}
+.header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.header-title{font-size:18px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;}
+.header-title i{color:var(--sky);font-size:21px;}
+.header-actions{display:flex;gap:8px;}
+.h-btn{height:38px;min-width:38px;padding:0 12px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;gap:5px;color:var(--text-2);font-size:16px;cursor:pointer;transition:all .15s;font-weight:500;}
+.h-btn:active{background:var(--sky-50);border-color:var(--sky);color:var(--sky);}
+.h-btn span{font-size:13px;}
+
+/* 面包屑 */
+.breadcrumb{display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:13px;color:var(--text-3);margin-bottom:10px;}
+.bc-item{color:var(--sky);cursor:pointer;font-weight:500;padding:3px 8px;border-radius:6px;transition:background .12s;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bc-item:active{background:var(--sky-50);}
+.bc-sep{color:var(--text-3);font-size:11px;}
+.bc-current{color:var(--text);font-weight:700;padding:3px 8px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* 搜索 */
+.search-box{position:relative;display:flex;align-items:center;background:var(--sky-50);border:1.5px solid var(--border);border-radius:var(--r-sm);padding:0 12px;transition:all .2s;}
+.search-box:focus-within{border-color:var(--sky);background:#fff;box-shadow:0 0 0 3px var(--sky-light);}
+.search-box>i{color:var(--text-3);font-size:17px;}
+.search-box input{flex:1;border:none;background:transparent;padding:11px 10px;font-size:15px;color:var(--text);outline:none;min-width:0;}
+.search-box input::placeholder{color:var(--text-3);}
+.search-box .clear{color:var(--text-3);font-size:18px;cursor:pointer;display:none;padding:6px;}
+.search-box .clear.show{display:block;}
+.search-panel{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:var(--r);box-shadow:0 8px 30px rgba(14,165,233,0.15);max-height:55vh;overflow-y:auto;z-index:60;display:none;}
+.search-panel.show{display:block;}
+.sr-item{padding:13px 15px;border-bottom:1px solid var(--border-l);cursor:pointer;}
+.sr-item:active{background:var(--sky-50);}
+.sr-item:last-child{border-bottom:none;}
+.sr-path{font-size:12px;color:var(--text-3);margin-bottom:3px;}
+.sr-title{font-weight:600;color:var(--text);font-size:15px;}
+.sr-phone{font-size:13px;color:var(--sky);margin-top:3px;display:flex;align-items:center;gap:5px;}
+.sr-empty{text-align:center;padding:28px;color:var(--text-3);font-size:14px;}
+.sr-count{padding:10px 15px;font-size:12.5px;color:var(--text-2);background:var(--sky-50);border-bottom:1px solid var(--border-l);position:sticky;top:0;z-index:2;}
+.sr-count b{color:var(--sky);font-size:14px;}
+.sr-group{padding:8px 15px 6px;font-size:11.5px;font-weight:700;color:var(--text-3);background:#f8fafc;border-bottom:1px solid var(--border-l);display:flex;align-items:center;gap:6px;}
+.sr-group i{color:var(--sky);font-size:13px;}
+.sr-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.sr-tag{font-size:11px;padding:2px 8px;border-radius:8px;background:var(--sky-50);color:var(--sky);font-weight:600;}
+mark{background:#fef9c3;color:inherit;padding:0 2px;border-radius:3px;}
+
+/* ===== 主体 ===== */
+.main{padding:14px 14px 100px;max-width:680px;margin:0 auto;}
+.stats{display:flex;gap:10px;margin-bottom:14px;}
+.stat-card{flex:1;background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(14,165,233,0.05);}
+.stat-card .si{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+.stat-card.c1 .si{background:var(--sky-50);color:var(--sky);}
+.stat-card.c2 .si{background:#ecfdf5;color:var(--green);}
+.stat-card .num{font-size:19px;font-weight:700;color:var(--text);line-height:1.2;}
+.stat-card .lbl{font-size:12px;color:var(--text-3);}
+
+.toolbar-row{display:flex;gap:8px;margin-bottom:12px;}
+.tb-btn{flex:1;padding:10px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:#fff;font-size:13px;color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:500;}
+.tb-btn:active{background:var(--sky-50);border-color:var(--sky);color:var(--sky);}
+.tb-btn i{font-size:15px;}
+
+.page-title{font-size:15px;font-weight:700;color:var(--text-2);margin-bottom:10px;padding-left:4px;display:flex;align-items:center;gap:6px;}
+.page-title .pt-count{font-size:12px;color:var(--text-3);font-weight:500;}
+
+/* ===== 列表 ===== */
+.list{display:flex;flex-direction:column;gap:8px;}
+.item-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:0 2px 8px rgba(14,165,233,0.06);transition:box-shadow .15s;}
+.item-card:active{box-shadow:0 4px 16px rgba(14,165,233,0.15);}
+
+/* 卡片头部通用：标题可换行 */
+.item-head{display:flex;align-items:center;gap:10px;padding:15px 14px;cursor:pointer;}
+.i-title{flex:1;min-width:0;font-weight:700;font-size:16px;color:var(--text);word-break:break-all;line-height:1.4;}
+.badge{font-size:11px;padding:3px 9px;border-radius:10px;flex-shrink:0;font-weight:600;}
+.chev{color:var(--text-3);font-size:14px;flex-shrink:0;}
+.act-row{display:flex;gap:4px;flex-shrink:0;}
+.act-btn{width:32px;height:32px;border-radius:8px;border:none;background:rgba(14,165,233,0.1);color:var(--sky);display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;transition:all .12s;}
+.act-btn:active{transform:scale(0.9);background:var(--sky);color:#fff;}
+.act-btn.danger{color:var(--red);background:rgba(239,68,68,0.1);}
+.act-btn.danger:active{background:var(--red);color:#fff;}
+.drag{color:var(--text-3);font-size:20px;cursor:grab;padding:6px 2px;touch-action:none;}
+.drag:active{cursor:grabbing;color:var(--sky);}
+
+/* L1 区域 */
+.card-l1 .item-head{background:linear-gradient(90deg,var(--sky-50) 0%,#fff 60%);border-left:5px solid var(--sky);}
+.card-l1 .i-icon{color:var(--sky);font-size:19px;flex-shrink:0;}
+.card-l1 .badge{background:var(--sky-light);color:var(--sky);}
+
+/* L2 楼盘 */
+.card-l2{border-radius:var(--r-sm);}
+.card-l2 .item-head{padding:13px 12px;}
+.card-l2 .i-icon{color:var(--sky);font-size:17px;flex-shrink:0;}
+.card-l2 .i-title{font-weight:600;font-size:14.5px;}
+.card-l2 .badge{color:var(--text-2);background:var(--sky-50);border:1px solid var(--border);}
+
+/* L3 楼层（不可拖动） */
+.card-l3{background:var(--sky-50);border-radius:var(--r-sm);}
+.card-l3 .item-head{padding:12px 12px;}
+.card-l3 .i-icon{color:var(--sky);font-size:15px;flex-shrink:0;}
+.card-l3 .i-title{font-weight:600;font-size:14px;}
+.card-l3 .badge.has{color:var(--green);background:#ecfdf5;border:1px solid #d1fae5;}
+.card-l3 .badge.zero{color:var(--text-3);background:#fff;border:1px solid var(--border);}
+
+/* ===== L4 室（展开式） ===== */
+.room{background:#fff;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;}
+.room-head{
+  display:flex;align-items:center;gap:9px;padding:12px 12px;cursor:pointer;
+  background:linear-gradient(90deg,#f8fbff,#fff);
+}
+.room-head .drag{font-size:18px;padding:4px 2px;}
+.room-head .r-toggle{
+  width:22px;height:22px;border-radius:6px;background:var(--sky-50);color:var(--sky);
+  display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;
+  transition:transform .25s;border:1px solid var(--border);
+}
+.room-head .r-toggle.collapsed{transform:rotate(-90deg);}
+.room-head .r-icon{color:var(--sky);font-size:15px;flex-shrink:0;}
+.room-head .r-title{flex:1;font-weight:600;font-size:14px;color:var(--text);min-width:0;word-break:break-all;line-height:1.4;}
+.room-head .badge{color:var(--green);background:#ecfdf5;border:1px solid #d1fae5;}
+.room-head .badge.zero{color:var(--text-3);background:#fff;border:1px solid var(--border);}
+.room-body{padding:6px 8px 10px 14px;display:none;flex-direction:column;gap:6px;background:rgba(240,249,255,0.4);}
+.room-body.open{display:flex;}
+
+/* L5 客户卡片 */
+.client{background:#fff;border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 12px;display:flex;align-items:flex-start;gap:10px;}
+.client .c-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--sky-mid),var(--sky));color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;flex-shrink:0;}
+.client .c-body{flex:1;min-width:0;}
+.client .c-name{font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.client .c-phone{font-size:13px;color:var(--sky);margin-top:4px;display:flex;align-items:center;gap:5px;}
+.client .c-phone a{color:var(--sky);text-decoration:none;font-weight:600;}
+.client .c-note{font-size:13px;color:var(--text-2);margin-top:3px;}
+.client .c-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;}
+.client .c-tag{font-size:11px;padding:2px 8px;border-radius:8px;background:var(--sky-50);color:var(--sky);border:1px solid var(--border);font-weight:500;}
+.client .c-tag.vip{background:#fef3c7;color:#b45309;border-color:#fde68a;}
+.client .c-right{display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:center;}
+.client .drag{font-size:18px;padding:4px 2px;line-height:1;}
+.no-phone{font-size:12px;color:var(--amber);font-style:italic;display:flex;align-items:center;gap:5px;margin-top:4px;font-weight:500;}
+
+/* 空提示 */
+.empty-hint{font-size:13px;color:var(--text-3);text-align:center;padding:40px 20px;}
+.empty-hint i{font-size:48px;color:var(--sky-light);display:block;margin-bottom:12px;}
+.empty-hint h3{font-size:16px;color:var(--text);margin-bottom:6px;}
+.empty-hint p{font-size:13px;}
+
+/* FAB */
+.fab{position:fixed;bottom:max(20px,env(safe-area-inset-bottom));right:18px;width:58px;height:58px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--sky-mid),var(--sky));color:#fff;font-size:28px;cursor:pointer;box-shadow:0 6px 20px rgba(14,165,233,0.45);z-index:40;display:flex;align-items:center;justify-content:center;transition:transform .12s;}
+.fab:active{transform:scale(0.88);}
+
+/* 模态框 */
+.modal-bg{position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(4px);z-index:200;display:none;align-items:flex-end;justify-content:center;}
+.modal-bg.show{display:flex;}
+.modal{background:#fff;width:100%;max-width:460px;border-radius:20px 20px 0 0;padding:20px 18px max(22px,env(safe-area-inset-bottom));max-height:88vh;overflow-y:auto;animation:up .28s ease;}
+@keyframes up{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.modal-bar{width:40px;height:5px;background:var(--border);border-radius:3px;margin:0 auto 16px;}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.modal-title{font-size:17px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.modal-title i{color:var(--sky);font-size:20px;}
+.modal-x{width:34px;height:34px;border-radius:50%;border:none;background:var(--bg);color:var(--text-3);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.modal-x:active{background:var(--border);}
+
+.fg{margin-bottom:14px;}
+.fg label{display:block;font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:6px;}
+.fg label .req{color:var(--red);}
+.fg input,.fg textarea,.fg select{width:100%;padding:13px 14px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:15px;color:var(--text);background:#fff;outline:none;font-family:inherit;transition:all .2s;}
+.fg input:focus,.fg textarea:focus,.fg select:focus{border-color:var(--sky);box-shadow:0 0 0 3px var(--sky-light);}
+.fg textarea{resize:vertical;min-height:65px;}
+
+.level-pick{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;}
+.lp{padding:15px 8px;border:1.5px solid var(--border);border-radius:var(--r-sm);text-align:center;cursor:pointer;background:#fff;transition:all .12s;}
+.lp:active{transform:scale(0.97);}
+.lp.on{border-color:var(--sky);background:var(--sky-50);box-shadow:0 0 0 3px var(--sky-light);}
+.lp i{font-size:24px;display:block;margin-bottom:5px;}
+.lp .t{font-size:13px;font-weight:600;}
+.lp .d{font-size:11px;color:var(--text-3);margin-top:2px;}
+
+.modal-btns{display:flex;gap:10px;margin-top:18px;}
+.btn{flex:1;padding:14px;border:none;border-radius:var(--r-sm);font-size:15px;font-weight:700;cursor:pointer;transition:transform .1s;}
+.btn:active{transform:scale(0.97);}
+.btn-ok{background:var(--sky);color:#fff;box-shadow:0 4px 12px rgba(14,165,233,0.35);}
+.btn-cancel{background:var(--bg);color:var(--text-2);}
+.btn-danger{background:#fee2e2;color:var(--red);}
+
+.io-grid{display:flex;flex-direction:column;gap:12px;margin-bottom:14px;}
+.io-card{padding:18px;border:2px dashed var(--sky);border-radius:var(--r);background:var(--sky-50);cursor:pointer;text-align:center;transition:all .12s;display:flex;align-items:center;gap:14px;}
+.io-card:active{background:var(--sky-light);}
+.io-card .io-icon{width:48px;height:48px;border-radius:12px;background:var(--sky);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.io-card .io-text{text-align:left;}
+.io-card .io-t{font-size:15px;font-weight:700;color:var(--text);}
+.io-card .io-d{font-size:12px;color:var(--text-3);margin-top:2px;}
+
+.warn-box{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r-sm);padding:11px 13px;font-size:13px;color:#92400e;margin-bottom:14px;display:flex;gap:8px;align-items:flex-start;line-height:1.5;}
+.warn-box i{color:var(--amber);font-size:16px;flex-shrink:0;margin-top:1px;}
+.warn-box.info{background:var(--sky-50);border-color:var(--border);color:var(--text-2);}
+.warn-box.info i{color:var(--sky);}
+
+.toast{position:fixed;top:max(72px,calc(env(safe-area-inset-top)+72px));left:50%;transform:translateX(-50%) translateY(-120px);opacity:0;background:rgba(15,23,42,0.95);color:#fff;padding:11px 22px;border-radius:24px;font-size:14px;z-index:999;transition:transform .3s cubic-bezier(.4,1.4,.5,1),opacity .3s;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.25);white-space:nowrap;pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;pointer-events:auto;}
+
+.sortable-ghost{opacity:0.3;}
+.sortable-chosen{box-shadow:0 8px 24px rgba(14,165,233,0.2)!important;}
+.sortable-drag{opacity:0.95;transform:rotate(1deg);}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+</style>
+</head>
+<body>
+
+<!-- 登录/注册覆盖层 -->
+<div id="authOverlay" style="position:fixed;inset:0;z-index:500;background:linear-gradient(160deg,#f0f6ff,#e8f4fd);display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:20px;padding:30px 24px;max-width:360px;width:100%;box-shadow:0 8px 40px rgba(14,165,233,0.15);">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#38bdf8,#0ea5e9);margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:32px;color:#fff;">
+        <i class="bi bi-diagram-3-fill"></i>
+      </div>
+      <h2 style="font-size:20px;font-weight:700;color:#0f172a;margin-bottom:4px;">客户管理工作台</h2>
+      <p style="font-size:13px;color:#94a3b8;">永久存储 · 数据安全 · 账号登录</p>
+    </div>
+    
+    <div id="authForm">
+      <div class="fg" style="margin-bottom:12px;">
+        <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">用户名</label>
+        <input type="text" id="authUser" placeholder="请输入用户名" style="width:100%;padding:13px 14px;border:1.5px solid #dbe7f0;border-radius:10px;font-size:15px;outline:none;transition:all .2s;" onfocus="this.style.borderColor='#0ea5e9';this.style.boxShadow='0 0 0 3px #e0f2fe'" onblur="this.style.borderColor='#dbe7f0';this.style.boxShadow='none'">
+      </div>
+      <div class="fg" style="margin-bottom:16px;">
+        <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">密码</label>
+        <div style="position:relative;">
+          <input type="password" id="authPass" placeholder="请输入密码（至少6位）" style="width:100%;padding:13px 44px 13px 14px;border:1.5px solid #dbe7f0;border-radius:10px;font-size:15px;outline:none;transition:all .2s;" onfocus="this.style.borderColor='#0ea5e9';this.style.boxShadow='0 0 0 3px #e0f2fe'" onblur="this.style.borderColor='#dbe7f0';this.style.boxShadow='none'">
+          <i class="bi bi-eye-slash" id="authPassEye" onclick="togglePass('authPass','authPassEye')" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:18px;color:#94a3b8;cursor:pointer;"></i>
+        </div>
+      </div>
+      <div id="authError" style="display:none;background:#fee2e2;color:#ef4444;padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:12px;"></div>
+      <button onclick="doLogin()" style="width:100%;padding:14px;border:none;border-radius:10px;background:linear-gradient(135deg,#0ea5e9,#38bdf8);color:#fff;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.35);margin-bottom:10px;">登录</button>
+      <button onclick="doRegister()" style="width:100%;padding:14px;border:1.5px solid #0ea5e9;border-radius:10px;background:#fff;color:#0ea5e9;font-size:15px;font-weight:700;cursor:pointer;">注册新账号</button>
+    </div>
+    
+    <div style="text-align:center;margin-top:16px;font-size:11px;color:#94a3b8;">
+      <i class="bi bi-shield-check"></i> 数据永久云端保存，不会丢失
+    </div>
+  </div>
+</div>
+
+<!-- 修改密码弹窗 -->
+<div id="changePassOverlay" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:20px;padding:30px 24px;max-width:360px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
+    <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:20px;text-align:center;">修改密码</h3>
+    <div class="fg" style="margin-bottom:12px;">
+      <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">旧密码</label>
+      <div style="position:relative;">
+        <input type="password" id="oldPass" placeholder="请输入旧密码" style="width:100%;padding:13px 44px 13px 14px;border:1.5px solid #dbe7f0;border-radius:10px;font-size:15px;outline:none;">
+        <i class="bi bi-eye-slash" id="oldPassEye" onclick="togglePass('oldPass','oldPassEye')" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:18px;color:#94a3b8;cursor:pointer;"></i>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:12px;">
+      <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">新密码（至少6位）</label>
+      <div style="position:relative;">
+        <input type="password" id="newPass1" placeholder="请输入新密码" style="width:100%;padding:13px 44px 13px 14px;border:1.5px solid #dbe7f0;border-radius:10px;font-size:15px;outline:none;">
+        <i class="bi bi-eye-slash" id="newPass1Eye" onclick="togglePass('newPass1','newPass1Eye')" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:18px;color:#94a3b8;cursor:pointer;"></i>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:16px;">
+      <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">确认新密码</label>
+      <div style="position:relative;">
+        <input type="password" id="newPass2" placeholder="请再次输入新密码" style="width:100%;padding:13px 44px 13px 14px;border:1.5px solid #dbe7f0;border-radius:10px;font-size:15px;outline:none;">
+        <i class="bi bi-eye-slash" id="newPass2Eye" onclick="togglePass('newPass2','newPass2Eye')" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:18px;color:#94a3b8;cursor:pointer;"></i>
+      </div>
+    </div>
+    <div id="changePassError" style="display:none;background:#fee2e2;color:#ef4444;padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:12px;"></div>
+    <button onclick="doChangePass()" style="width:100%;padding:14px;border:none;border-radius:10px;background:linear-gradient(135deg,#0ea5e9,#38bdf8);color:#fff;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.35);margin-bottom:10px;">确认修改</button>
+    <button onclick="closeChangePass()" style="width:100%;padding:14px;border:1.5px solid #dbe7f0;border-radius:10px;background:#fff;color:#64748b;font-size:15px;cursor:pointer;">取消</button>
+  </div>
+</div>
+
+<!-- 顶部用户信息 -->
+<div id="userBar" style="display:none;background:#fff;border-bottom:1px solid #e8f0f5;padding:6px 16px;font-size:12px;color:#64748b;display:none;align-items:center;justify-content:space-between;">
+  <span><i class="bi bi-person-circle" style="color:#0ea5e9;"></i> <span id="userBarName"></span></span>
+  <span style="display:flex;align-items:center;gap:6px;">
+    <span id="syncStatus" style="color:#10b981;font-size:11px;"><i class="bi bi-check-circle"></i> 已同步</span>
+    <button onclick="showChangePass()" style="border:none;background:none;color:#0ea5e9;font-size:12px;cursor:pointer;">改密码</button>
+    <button onclick="logout()" style="border:none;background:none;color:#94a3b8;font-size:12px;cursor:pointer;">退出</button>
+  </span>
+</div>
+
+<header class="header">
+  <div class="header-row">
+    <div class="header-title"><i class="bi bi-diagram-3-fill"></i>客户管理工作台</div>
+    <div class="header-actions">
+      <button class="h-btn" id="ioBtn"><i class="bi bi-arrow-down-up-square"></i><span>导入导出</span></button>
+    </div>
+  </div>
+  <div id="breadcrumbWrap"></div>
+  <div class="search-box" id="searchBox">
+    <i class="bi bi-search"></i>
+    <input type="text" id="searchInput" placeholder="搜索客户名 / 电话 / 室号..." autocomplete="off">
+    <span class="clear" id="clearBtn"><i class="bi bi-x-circle-fill"></i></span>
+    <div class="search-panel" id="searchPanel"></div>
+  </div>
+</header>
+
+<main class="main">
+  <div id="statsWrap"></div>
+  <div id="toolbarWrap"></div>
+  <div id="pageContent"></div>
+</main>
+
+<button class="fab" id="fab"><i class="bi bi-plus-lg"></i></button>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal" id="modal">
+    <div class="modal-bar"></div>
+    <div class="modal-head">
+      <div class="modal-title" id="modalTitle"><i class="bi bi-plus-circle"></i>添加</div>
+      <button class="modal-x" id="modalX"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="fileInput" accept=".xlsx,.xls,.json" style="display:none;">
+
+<script>
+/* ========== 云端账号系统 (Supabase) ========== */
+// ⚠️ 请把下面两个值替换成你自己的 Supabase 项目密钥
+const SUPABASE_URL = 'https://nxmsheabkkzyjvocqqpk.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54bXNoZWFia2t6eWp2b2NxcXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzODkxNzMsImV4cCI6MjEwMDk2NTE3M30.YYkFUcifHuv3zg4wYiJIYpfhvJ971cW_u-esHpu6DK0';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let cloudEnabled = false;
+let currentUser = null;
+
+async function doLogin() {
+  const u = document.getElementById('authUser').value.trim();
+  const p = document.getElementById('authPass').value;
+  if(!u||!p){showAuthError('请输入用户名和密码');return;}
+  // 把用户名转成邮箱格式（Supabase需要email）
+  const email = u.includes('@') ? u : u + '@client.local';
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: p });
+    if(error) {
+      // 如果是邮箱未确认错误，提示
+      if(error.message.includes('not confirmed')||error.message.includes('Email')) {
+        showAuthError('账号未确认，请联系管理员或重新注册');
+      } else {
+        showAuthError('用户名或密码错误');
+      }
+      return;
+    }
+    enterApp();
+  } catch(e) { showAuthError('连接失败：' + (e.message || JSON.stringify(e))); }
+}
+
+async function doRegister() {
+  const u = document.getElementById('authUser').value.trim();
+  const p = document.getElementById('authPass').value;
+  if(!u||!p){showAuthError('请输入用户名和密码');return;}
+  if(u.length<2){showAuthError('用户名至少2个字符');return;}
+  if(p.length<6){showAuthError('密码至少6位');return;}
+  const email = u.includes('@') ? u : u + '@client.local';
+  try {
+    const { data, error } = await sb.auth.signUp({ 
+      email, 
+      password: p,
+      options: { data: { username: u } }
+    });
+    if(error) {
+      showAuthError(error.message||'注册失败');
+      return;
+    }
+    // 注册成功，自动登录
+    await doLogin();
+  } catch(e) { showAuthError('注册连接失败：' + (e.message || JSON.stringify(e))); }
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(()=>el.style.display='none', 3000);
+}
+
+async function enterApp() {
+  document.getElementById('authOverlay').style.display = 'none';
+  const ub = document.getElementById('userBar');
+  ub.style.display = 'flex';
+  
+  // 获取当前用户
+  const { data: { session } } = await sb.auth.getSession();
+  currentUser = session?.user;
+  if(!currentUser) { document.getElementById('authOverlay').style.display='flex'; return; }
+  
+  // 显示用户名
+  const displayName = currentUser.user_metadata?.username || currentUser.email.split('@')[0];
+  document.getElementById('userBarName').textContent = displayName;
+  cloudEnabled = true;
+  
+  // 从 Supabase 加载数据
+  setSyncStatus('loading');
+  try {
+    const { data: rows, error } = await sb
+      .from('client_data')
+      .select('data')
+      .eq('user_id', currentUser.id)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+    
+    if(!error && rows && rows.length > 0 && rows[0].data) {
+      // 云端有数据
+      data = rows[0].data;
+      migrateData(data);
+      localStorage.setItem(K_DATA, JSON.stringify(data));
+      render();
+    } else {
+      // 云端无数据，尝试本地迁移
+      const localData = tryMigrateOld();
+      if(localData) {
+        data = localData;
+        migrateData(data);
+      } else {
+        data = loadAndInit();
+      }
+      render();
+      await cloudSave();
+    }
+    setSyncStatus('ok');
+  } catch(e) {
+    console.error('云端加载失败', e);
+    data = loadAndInit();
+    render();
+    setSyncStatus('offline');
+    toast('云端连接失败，使用本地数据', 'error');
+  }
+}
+
+async function logout() {
+  if(!confirm('确定退出登录？')) return;
+  await sb.auth.signOut();
+  currentUser = null;
+  location.reload();
+}
+
+function togglePass(inputId, eyeId) {
+  const input = document.getElementById(inputId);
+  const eye = document.getElementById(eyeId);
+  if(input.type === 'password') {
+    input.type = 'text';
+    eye.className = 'bi bi-eye';
+  } else {
+    input.type = 'password';
+    eye.className = 'bi bi-eye-slash';
+  }
+}
+
+function showChangePass() {
+  document.getElementById('changePassOverlay').style.display = 'flex';
+}
+
+function closeChangePass() {
+  document.getElementById('changePassOverlay').style.display = 'none';
+  document.getElementById('oldPass').value = '';
+  document.getElementById('newPass1').value = '';
+  document.getElementById('newPass2').value = '';
+  document.getElementById('changePassError').style.display = 'none';
+}
+
+function showCPError(msg) {
+  const el = document.getElementById('changePassError');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(()=>el.style.display='none', 3000);
+}
+
+async function doChangePass() {
+  const oldP = document.getElementById('oldPass').value;
+  const newP1 = document.getElementById('newPass1').value;
+  const newP2 = document.getElementById('newPass2').value;
+  if(!oldP||!newP1||!newP2){showCPError('请填写所有字段');return;}
+  if(newP1.length<6){showCPError('新密码至少6位');return;}
+  if(newP1!==newP2){showCPError('两次新密码不一致');return;}
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    if(!user){showCPError('请先登录');return;}
+    const email = user.email;
+    const { error: loginErr } = await sb.auth.signInWithPassword({ email, password: oldP });
+    if(loginErr){showCPError('旧密码错误');return;}
+    const { data, error } = await sb.auth.updateUser({ password: newP1 });
+    if(error){showCPError('修改失败：'+error.message);return;}
+    closeChangePass();
+    alert('密码修改成功！下次登录请用新密码');
+  } catch(e){showCPError('修改失败：'+(e.message||e));}
+}
+
+function setSyncStatus(status) {
+  const el = document.getElementById('syncStatus');
+  if(status==='loading') {
+    el.innerHTML = '<i class="bi bi-arrow-repeat"></i> 同步中...';
+    el.style.color = '#f59e0b';
+  } else if(status==='ok') {
+    el.innerHTML = '<i class="bi bi-check-circle"></i> 已同步';
+    el.style.color = '#10b981';
+  } else if(status==='saving') {
+    el.innerHTML = '<i class="bi bi-cloud-upload"></i> 保存中...';
+    el.style.color = '#f59e0b';
+  } else if(status==='error') {
+    el.innerHTML = '<i class="bi bi-exclamation-circle"></i> 同步失败';
+    el.style.color = '#ef4444';
+  } else if(status==='offline') {
+    el.innerHTML = '<i class="bi bi-cloud-slash"></i> 离线模式';
+    el.style.color = '#94a3b8';
+  }
+}
+
+// 云端保存（防抖）
+let saveTimer = null;
+function cloudSaveDebounced() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(cloudSave, 1000);
+}
+
+async function cloudSave() {
+  if(!cloudEnabled || !currentUser) return;
+  setSyncStatus('saving');
+  try {
+    const { error } = await sb
+      .from('client_data')
+      .insert({ user_id: currentUser.id, data: data });
+    
+    if(!error) { setSyncStatus('ok'); }
+    else { setSyncStatus('error'); console.error(error); }
+  } catch(e) {
+    console.error('云端保存失败', e);
+    setSyncStatus('error');
+  }
+}
+
+// 页面打开时检查登录状态
+async function checkAuth() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if(session && session.user) {
+      enterApp();
+      return;
+    }
+  } catch(e) {}
+  // 未登录，显示登录界面
+  document.getElementById('authOverlay').style.display = 'flex';
+}
+/* ========== 数据结构：5层 ========== 
+   1区域 → 2楼盘 → 3楼层 → 4室 → 5客户
+   楼层(3)以下用"页面导航"，室(4)下面客户用"展开"
+*/
+const K_DATA='cm_data_v5';
+const K_COL='cm_col_v5';
+const uid=()=>'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+/* 层级定义：navLevel 1-3 用页面导航，4室用展开 */
+const LV={
+  1:{n:'区域',ic:'bi-geo-alt-fill',child:'楼盘'},
+  2:{n:'楼盘',ic:'bi-building',child:'楼层'},
+  3:{n:'楼层',ic:'bi-layers',child:'室'},
+  4:{n:'室',ic:'bi-door-open',child:'客户'},
+  5:{n:'客户',ic:'bi-person-fill',child:null}
+};
+
+function defaultData(){
+  return [
+    {id:uid(),t:'合肥·包河区',ch:[
+      {id:uid(),t:'绿地中央广场',ch:[
+        {id:uid(),t:'8楼',ch:[
+          {id:uid(),t:'801室',col:false,ch:[
+            {id:uid(),t:'张先生',ph:'13800005678',note:'意向三室两厅',tags:['VIP','高意向']}
+          ]},
+          {id:uid(),t:'803室',col:true,ch:[
+            {id:uid(),t:'李女士',ph:'13900001234',note:'',tags:['已看房']}
+          ]}
+        ]},
+        {id:uid(),t:'12楼',ch:[
+          {id:uid(),t:'1201室',col:true,ch:[
+            {id:uid(),t:'王总',ph:'18600008888',note:'复式意向',tags:['VIP']}
+          ]}
+        ]}
+      ]},
+      {id:uid(),t:'绿地中心',ch:[
+        {id:uid(),t:'5楼',ch:[]}
+      ]}
+    ]},
+    {id:uid(),t:'合肥·蜀山区',ch:[
+      {id:uid(),t:'政务壹号',ch:[
+        {id:uid(),t:'3楼',ch:[
+          {id:uid(),t:'301室',col:false,ch:[
+            {id:uid(),t:'赵经理',ph:'13500006789',note:'两室一厅',tags:[]}
+          ]}
+        ]}
+      ]}
+    ]},
+    {id:uid(),t:'合肥·肥西县',ch:[
+      {id:uid(),t:'翡翠庄园',ch:[]}
+    ]}
+  ];
+}
+
+let data=loadAndInit();
+let colSet=loadCol(); // 室的展开/折叠状态
+
+/* 加载数据：优先读当前版本，其次迁移旧版本数据，最后用默认数据并写入localStorage */
+function loadAndInit(){
+  // 先读当前版本
+  try{
+    const r=localStorage.getItem(K_DATA);
+    if(r){
+      const parsed=JSON.parse(r);
+      if(parsed&&Array.isArray(parsed)&&parsed.length>0){
+        // 检查是否是默认空数据（没有用户自定义内容）
+        // 如果是默认数据且旧版本有数据，需要迁移
+        const oldMigrated=localStorage.getItem('cm_migrated_v5');
+        if(!oldMigrated){
+          // 尝试从旧版本迁移
+          const oldData=tryMigrateOld();
+          if(oldData){
+            migrateData(oldData);
+            localStorage.setItem(K_DATA,JSON.stringify(oldData));
+            localStorage.setItem('cm_migrated_v5','1');
+            console.log('已迁移旧版本数据到v5');
+            return oldData;
+          }
+          localStorage.setItem('cm_migrated_v5','1');
+        }
+        migrateData(parsed);
+        return parsed;
+      }
+    }
+  }catch(e){}
+  // 尝试从旧版本迁移
+  const oldData=tryMigrateOld();
+  if(oldData){
+    migrateData(oldData);
+    localStorage.setItem(K_DATA,JSON.stringify(oldData));
+    localStorage.setItem('cm_migrated_v5','1');
+    console.log('首次加载，已迁移旧版本数据');
+    return oldData;
+  }
+  // 用默认数据并立即写入localStorage
+  const def=defaultData();
+  try{
+    localStorage.setItem(K_DATA,JSON.stringify(def));
+    localStorage.setItem('cm_migrated_v5','1');
+  }catch(e){}
+  return def;
+}
+
+/* 尝试从所有旧版本key迁移数据 */
+function tryMigrateOld(){
+  const oldKeys=['cm_data_v4','cm_data_v3','cm_data_v2','cm_data_v1','clientManagerData_v1'];
+  for(const k of oldKeys){
+    try{
+      const old=localStorage.getItem(k);
+      if(old){
+        const parsed=JSON.parse(old);
+        if(parsed&&Array.isArray(parsed)&&parsed.length>0){
+          console.log('找到旧数据：'+k+'，'+parsed.length+'个区域');
+          return parsed;
+        }
+      }
+    }catch(e){}
+  }
+  return null;
+}
+
+/* 迁移旧数据结构：补齐ch数组、col字段，旧结构楼层直接挂客户的需要加室层级 */
+function migrateData(list){
+  function walk(n,lv){
+    if(!n||typeof n!=='object')return;
+    // 强制规范化字段类型：标题/电话/备注必须是字符串，防止 toLowerCase 等调用报错
+    if(!n.id)n.id=uid();
+    n.t=safeStr(n.t)||'（未命名）';
+    if(n.ph!==undefined&&n.ph!==null&&n.ph!=='')n.ph=safeStr(n.ph);
+    if(n.note!==undefined&&n.note!==null&&n.note!=='')n.note=safeStr(n.note);
+    if(n.tags&&!Array.isArray(n.tags))n.tags=[safeStr(n.tags)];
+    // 旧版v4及之前是4层（区域→楼盘→楼层→客户），v5是5层（多了"室"）
+    // 如果楼层(lv=3)的子节点没有ch字段，说明是旧结构，需要包裹一层"室"
+    if(lv===3&&Array.isArray(n.ch)&&n.ch.length>0){
+      // 检查子节点是否是客户（有ph字段，没有ch）
+      const hasOldClients=n.ch.some(c=>c&&typeof c==='object'&&c.ph!==undefined&&!c.ch);
+      if(hasOldClients){
+        // 把这些客户包裹到一个"默认室"里
+        const clients=n.ch.filter(c=>c&&typeof c==='object'&&c.ph!==undefined&&!c.ch);
+        const others=n.ch.filter(c=>!(c&&typeof c==='object'&&c.ph!==undefined&&!c.ch));
+        if(clients.length>0){
+          const room={id:uid(),t:'默认室',col:false,ch:clients};
+          n.ch=[...others,room];
+        }
+      }
+    }
+    if(lv<5){
+      if(!Array.isArray(n.ch))n.ch=[];
+      n.ch.forEach(c=>walk(c,lv+1));
+    }
+    // 室（第4层）需要col字段
+    if(lv===4&&n.col===undefined)n.col=false;
+  }
+  if(Array.isArray(list))list.forEach(n=>walk(n,1));
+}
+
+function load(){return loadAndInit();}
+function save(){
+  try{localStorage.setItem(K_DATA,JSON.stringify(data));}catch(e){console.error(e);return false;}
+  // 同步到云端
+  if(cloudEnabled) cloudSaveDebounced();
+  return true;
+}
+function loadCol(){try{const r=localStorage.getItem(K_COL);return r?new Set(JSON.parse(r)):new Set();}catch(e){return new Set();}}
+function saveCol(){try{localStorage.setItem(K_COL,JSON.stringify([...colSet]));}catch(e){}}
+function isCol(n){return colSet.has(n.id)||n.col===true;}
+function setCol(n,v){if(v){colSet.add(n.id);n.col=true;}else{colSet.delete(n.id);n.col=false;}saveCol();}
+
+/* 导航：navPath存id，最多到楼层(3级)，室(4)用展开 */
+let navPath=[]; // [] → 区域, [areaId] → 楼盘, [areaId,buildingId] → 楼层
+
+function find(id,list=data,parent=null){
+  for(const it of list){if(it.id===id)return{node:it,list,parent};if(it.ch){const r=find(id,it.ch,it);if(r)return r;}}
+  return null;
+}
+function findPath(id,list=data,path=[]){
+  for(const it of list){const np=[...path,it];if(it.id===id)return np;if(it.ch){const r=findPath(id,it.ch,np);if(r)return r;}}
+  return null;
+}
+function countBy(list,lv,cur=1){let c=0;for(const it of list){if(cur===lv)c++;if(it.ch)c+=countBy(it.ch,lv,cur+1);}return c;}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+
+/* 获取当前层级列表：navPath决定到第几层 */
+function getCurrentList(){
+  if(navPath.length===0)return data; // 区域列表
+  const last=navPath[navPath.length-1];
+  const f=find(last);
+  return f&&f.node.ch?f.node.ch:[];
+}
+/* 当前导航层级：1=区域列表, 2=楼盘列表, 3=楼层列表(含室,展开式) */
+function getCurrentLevel(){return navPath.length+1;}
+
+function getBreadcrumb(){
+  const crumbs=[{t:'全部区域',id:null}];
+  let cur=data;
+  for(const id of navPath){
+    const f=find(id,cur);
+    if(f){crumbs.push({t:f.node.t,id:f.node.id});cur=f.node.ch;}
+    else break;
+  }
+  return crumbs;
+}
+
+/* ========== 渲染 ========== */
+const statsWrap=document.getElementById('statsWrap');
+const toolbarWrap=document.getElementById('toolbarWrap');
+const breadcrumbWrap=document.getElementById('breadcrumbWrap');
+const pageContent=document.getElementById('pageContent');
+
+function render(){
+  renderStats();
+  renderBreadcrumb();
+  renderPage();
+}
+
+function renderStats(){
+  if(navPath.length===0){
+    statsWrap.innerHTML=`<div class="stats">
+      <div class="stat-card c1"><div class="si"><i class="bi bi-geo-alt-fill"></i></div><div><div class="num">${countBy(data,1)}</div><div class="lbl">区域</div></div></div>
+      <div class="stat-card c2"><div class="si"><i class="bi bi-people-fill"></i></div><div><div class="num">${countBy(data,5)}</div><div class="lbl">客户</div></div></div>
+    </div>`;
+  }else{statsWrap.innerHTML='';}
+}
+
+function renderBreadcrumb(){
+  if(navPath.length===0){breadcrumbWrap.innerHTML='';return;}
+  const crumbs=getBreadcrumb();
+  let h='<div class="breadcrumb">';
+  crumbs.forEach((c,i)=>{
+    if(i>0)h+='<span class="bc-sep"><i class="bi bi-chevron-right"></i></span>';
+    if(i<crumbs.length-1){h+=`<span class="bc-item" onclick="navigateTo(${i})">${esc(c.t)}</span>`;}
+    else{h+=`<span class="bc-current">${esc(c.t)}</span>`;}
+  });
+  h+='</div>';
+  breadcrumbWrap.innerHTML=h;
+}
+
+function renderToolbar(){
+  const lv=getCurrentLevel();
+  const list=getCurrentList();
+  const info=LV[lv];
+  let titleText;
+  if(lv===1)titleText='区域列表';
+  else if(lv===2)titleText='楼盘列表';
+  else if(lv===3)titleText='楼层列表（点击室展开客户）';
+  else titleText=info.child?info.child+'列表':'列表';
+  
+  toolbarWrap.innerHTML=`<div class="page-title">
+    <i class="bi ${info.ic}"></i>${titleText}
+    <span class="pt-count">（${list.length}）</span>
+  </div>`;
+}
+
+function renderPage(){
+  renderToolbar();
+  const lv=getCurrentLevel();
+  const list=getCurrentList();
+  const container=pageContent;
+  container.innerHTML='';
+
+  if(list.length===0){
+    const childInfo=lv<5?LV[lv+1]:null;
+    container.innerHTML=`<div class="empty-hint">
+      <i class="bi bi-inboxes"></i>
+      <h3>暂无${childInfo?childInfo.n:'客户'}</h3>
+      <p>点击右下角加号添加${childInfo?childInfo.n:'客户'}</p>
+    </div>`;
+    return;
+  }
+
+  const listDiv=document.createElement('div');
+  listDiv.className='list';
+
+  if(lv===1){
+    list.forEach(n=>listDiv.appendChild(makeAreaCard(n)));
+  }else if(lv===2){
+    list.forEach(n=>listDiv.appendChild(makeBuildingCard(n)));
+  }else if(lv===3){
+    // 楼层列表：每个楼层下显示室，室可展开
+    list.forEach(n=>listDiv.appendChild(makeFloorCard(n)));
+  }
+  container.appendChild(listDiv);
+
+  // 拖拽：区域和楼盘可拖，楼层不可拖
+  if(lv===1||lv===2){
+    initSort(listDiv,list);
+  }
+}
+
+/* --- 区域卡片 --- */
+function makeAreaCard(n){
+  const wrap=document.createElement('div');
+  wrap.className='item-card card-l1';
+  wrap.dataset.id=n.id;
+  wrap.innerHTML=`
+    <div class="item-head">
+      <span class="drag"><i class="bi bi-grip-vertical"></i></span>
+      <i class="bi bi-geo-alt-fill i-icon"></i>
+      <span class="i-title">${esc(n.t)}</span>
+      <span class="badge">${n.ch?n.ch.length:0}个楼盘</span>
+      <div class="act-row">
+        <button class="act-btn" data-act="add" title="添加楼盘"><i class="bi bi-plus-lg"></i></button>
+        <button class="act-btn" data-act="edit" title="编辑"><i class="bi bi-pencil"></i></button>
+        <button class="act-btn danger" data-act="del" title="删除"><i class="bi bi-trash3"></i></button>
+      </div>
+      <i class="bi bi-chevron-right chev"></i>
+    </div>`;
+  bindNavCard(wrap,n,1);
+  return wrap;
+}
+
+/* --- 楼盘卡片 --- */
+function makeBuildingCard(n){
+  const wrap=document.createElement('div');
+  wrap.className='item-card card-l2';
+  wrap.dataset.id=n.id;
+  wrap.innerHTML=`
+    <div class="item-head">
+      <span class="drag"><i class="bi bi-grip-vertical"></i></span>
+      <i class="bi bi-building i-icon"></i>
+      <span class="i-title">${esc(n.t)}</span>
+      <span class="badge">${n.ch?n.ch.length:0}个楼层</span>
+      <div class="act-row">
+        <button class="act-btn" data-act="add" title="添加楼层"><i class="bi bi-plus-lg"></i></button>
+        <button class="act-btn" data-act="edit" title="编辑"><i class="bi bi-pencil"></i></button>
+        <button class="act-btn danger" data-act="del" title="删除"><i class="bi bi-trash3"></i></button>
+      </div>
+      <i class="bi bi-chevron-right chev"></i>
+    </div>`;
+  bindNavCard(wrap,n,2);
+  return wrap;
+}
+
+/* --- 楼层卡片（不可拖动，点击展开室列表） --- */
+function makeFloorCard(n){
+  const wrap=document.createElement('div');
+  wrap.className='item-card card-l3';
+  wrap.dataset.id=n.id;
+  const roomCount=n.ch?n.ch.length:0;
+  const clientCount=countBy(n.ch||[],5);
+  const collapsed=isCol(n);
+
+  let h=`<div class="item-head" style="flex-wrap:wrap;cursor:pointer;">
+    <span class="r-toggle ${collapsed?'collapsed':''}" style="width:22px;height:22px;border-radius:6px;background:var(--sky-50);color:var(--sky);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;transition:transform .25s;border:1px solid var(--border);"><i class="bi bi-chevron-down"></i></span>
+    <i class="bi bi-layers i-icon"></i>
+    <span class="i-title">${esc(n.t)}</span>
+    <span class="badge has">${roomCount}个室</span>
+    <span class="badge has">${clientCount}位客户</span>
+    <div class="act-row">
+      <button class="act-btn" data-act="add" title="添加室"><i class="bi bi-plus-lg"></i></button>
+      <button class="act-btn" data-act="edit" title="编辑"><i class="bi bi-pencil"></i></button>
+      <button class="act-btn danger" data-act="del" title="删除"><i class="bi bi-trash3"></i></button>
+    </div>
+  </div>`;
+
+  // 室列表（展开式，跟随折叠状态）
+  h+=`<div class="floor-rooms" style="padding:8px 8px 10px 14px;display:${collapsed?'none':'flex'};flex-direction:column;gap:6px;background:rgba(240,249,255,0.5);">`;
+  if(n.ch&&n.ch.length){
+    n.ch.forEach(room=>{h+=makeRoomCard(room);});
+  }else{
+    h+='<div class="empty-hint" style="padding:16px;"><p>暂无室，点 + 添加</p></div>';
+  }
+  h+='</div>';
+
+  wrap.innerHTML=h;
+
+  // 点击楼层头部切换展开
+  const head=wrap.querySelector('.item-head');
+  head.addEventListener('click',function(e){
+    if(e.target.closest('button'))return;
+    setCol(n,!isCol(n));
+    render();
+  });
+
+  // 操作按钮
+  wrap.querySelector('[data-act=add]').onclick=e=>{e.stopPropagation();openAdd(n,4);};
+  wrap.querySelector('[data-act=edit]').onclick=e=>{e.stopPropagation();openEdit(n,3);};
+  wrap.querySelector('[data-act=del]').onclick=e=>{e.stopPropagation();openDelete(n,3);};
+
+  // 绑定室的展开/编辑/删除
+  bindRoomCards(wrap,n);
+
+  return wrap;
+}
+
+/* --- 室卡片（展开式，显示客户） --- */
+function makeRoomCard(room){
+  const collapsed=isCol(room);
+  const clientCount=room.ch?room.ch.length:0;
+  let h=`<div class="room" data-room-id="${room.id}">
+    <div class="room-head">
+      <span class="drag"><i class="bi bi-grip-vertical"></i></span>
+      <span class="r-toggle ${collapsed?'collapsed':''}"><i class="bi bi-chevron-down"></i></span>
+      <i class="bi bi-door-open r-icon"></i>
+      <span class="r-title">${esc(room.t)}</span>
+      <span class="badge ${clientCount===0?'zero':''}">${clientCount}位客户</span>
+      <div class="act-row">
+        <button class="act-btn" data-ract="add" title="添加客户"><i class="bi bi-plus-lg"></i></button>
+        <button class="act-btn" data-ract="edit" title="编辑"><i class="bi bi-pencil"></i></button>
+        <button class="act-btn danger" data-ract="del" title="删除"><i class="bi bi-trash3"></i></button>
+      </div>
+    </div>
+    <div class="room-body ${collapsed?'':'open'}" data-body-room="${room.id}">`;
+  
+  if(room.ch&&room.ch.length){
+    room.ch.forEach(c=>{h+=makeClientCardHTML(c);});
+  }else{
+    h+='<div class="empty-hint" style="padding:12px;"><p>暂无客户，点 + 添加</p></div>';
+  }
+  h+='</div></div>';
+  return h;
+}
+
+function makeClientCardHTML(n){
+  let h=`<div class="client" data-id="${n.id}">
+    <div class="c-avatar">${esc((n.t||'?').charAt(0))}</div>
+    <div class="c-body">
+      <div class="c-name">${esc(n.t)}`;
+  if(n.tags&&n.tags.includes('VIP'))h+=`<span class="c-tag vip">VIP</span>`;
+  h+=`</div>`;
+  if(n.ph){h+=`<div class="c-phone"><i class="bi bi-telephone-fill"></i><a href="tel:${esc(n.ph)}">${esc(n.ph)}</a></div>`;}
+  else{h+=`<div class="no-phone"><i class="bi bi-exclamation-circle"></i>未添加电话</div>`;}
+  if(n.note)h+=`<div class="c-note">${esc(n.note)}</div>`;
+  if(n.tags&&n.tags.filter(t=>t!=='VIP').length){
+    h+=`<div class="c-tags">`;
+    n.tags.filter(t=>t!=='VIP').forEach(t=>h+=`<span class="c-tag">${esc(t)}</span>`);
+    h+=`</div>`;
+  }
+  h+=`</div>
+    <div class="c-right">
+      <span class="drag"><i class="bi bi-grip-vertical"></i></span>
+      <button class="act-btn" data-cact="edit" title="编辑"><i class="bi bi-pencil"></i></button>
+      <button class="act-btn danger" data-cact="del" title="删除"><i class="bi bi-trash3"></i></button>
+    </div>
+  </div>`;
+  return h;
+}
+
+/* 绑定导航卡片（区域/楼盘） */
+function bindNavCard(wrap,n,lv){
+  const head=wrap.querySelector('.item-head');
+  head.addEventListener('click',function(e){
+    if(e.target.closest('button')||e.target.closest('.drag'))return;
+    navPath.push(n.id);
+    render();
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+  if(wrap.querySelector('[data-act=add]'))wrap.querySelector('[data-act=add]').onclick=e=>{e.stopPropagation();openAdd(n,lv+1);};
+  if(wrap.querySelector('[data-act=edit]'))wrap.querySelector('[data-act=edit]').onclick=e=>{e.stopPropagation();openEdit(n,lv);};
+  if(wrap.querySelector('[data-act=del]'))wrap.querySelector('[data-act=del]').onclick=e=>{e.stopPropagation();openDelete(n,lv);};
+}
+
+/* 绑定室卡片内的操作 */
+function bindRoomCards(floorEl,floorNode){
+  // 遍历所有室
+  if(!floorNode.ch)return;
+  floorNode.ch.forEach(room=>{
+    const roomEl=floorEl.querySelector(`[data-room-id="${room.id}"]`);
+    if(!roomEl)return;
+    
+    // 展开/折叠
+    const head=roomEl.querySelector('.room-head');
+    const toggle=head.querySelector('.r-toggle');
+    const body=roomEl.querySelector('.room-body');
+    
+    head.addEventListener('click',function(e){
+      if(e.target.closest('button')||e.target.closest('.drag'))return;
+      setCol(room,!isCol(room));
+      render();
+    });
+    
+    // 添加客户
+    const addBtn=head.querySelector('[data-ract=add]');
+    if(addBtn)addBtn.onclick=e=>{e.stopPropagation();openAdd(room,5);};
+    // 编辑室
+    const editBtn=head.querySelector('[data-ract=edit]');
+    if(editBtn)editBtn.onclick=e=>{e.stopPropagation();openEdit(room,4);};
+    // 删除室
+    const delBtn=head.querySelector('[data-ract=del]');
+    if(delBtn)delBtn.onclick=e=>{e.stopPropagation();openDelete(room,4);};
+    
+    // 客户操作
+    if(room.ch){
+      room.ch.forEach(client=>{
+        const clientEl=roomEl.querySelector(`.client[data-id="${client.id}"]`);
+        if(!clientEl)return;
+        const editC=clientEl.querySelector('[data-cact=edit]');
+        const delC=clientEl.querySelector('[data-cact=del]');
+        if(editC)editC.onclick=e=>{e.stopPropagation();openEdit(client,5);};
+        if(delC)delC.onclick=e=>{e.stopPropagation();openDelete(client,5);};
+      });
+    }
+  });
+  
+  // 室的拖拽排序
+  const roomsContainer=floorEl.querySelector('.floor-rooms');
+  if(roomsContainer&&floorNode.ch&&window.Sortable){
+    Sortable.create(roomsContainer,{
+      group:'rooms_'+floorNode.id,
+      animation:180,
+      handle:'.drag',
+      ghostClass:'sortable-ghost',
+      chosenClass:'sortable-chosen',
+      onStart:function(){document.body.style.userSelect='none';},
+      onEnd:function(){
+        document.body.style.userSelect='';
+        const map={};floorNode.ch.forEach(it=>map[it.id]=it);
+        const newArr=[];
+        roomsContainer.querySelectorAll(':scope > .room').forEach(el=>{
+          const id=el.dataset.roomId;
+          if(map[id])newArr.push(map[id]);
+        });
+        floorNode.ch.length=0;newArr.forEach(it=>floorNode.ch.push(it));
+        if(save()){toast('排序已保存','success');}
+        else{toast('保存失败','error');}
+      }
+    });
+  }
+  
+  // 客户的拖拽排序（每个室内）
+  if(floorNode.ch){
+    floorNode.ch.forEach(room=>{
+      const body=floorEl.querySelector(`[data-body-room="${room.id}"]`);
+      if(body&&room.ch&&room.ch.length&&window.Sortable){
+        Sortable.create(body,{
+          group:'clients_'+room.id,
+          animation:180,
+          handle:'.drag',
+          ghostClass:'sortable-ghost',
+          chosenClass:'sortable-chosen',
+          onStart:function(){document.body.style.userSelect='none';},
+          onEnd:function(){
+            document.body.style.userSelect='';
+            const map={};room.ch.forEach(it=>map[it.id]=it);
+            const newArr=[];
+            body.querySelectorAll(':scope > .client').forEach(el=>{
+              const id=el.dataset.id;
+              if(map[id])newArr.push(map[id]);
+            });
+            room.ch.length=0;newArr.forEach(it=>room.ch.push(it));
+            if(save()){toast('排序已保存','success');}
+            else{toast('保存失败','error');}
+          }
+        });
+      }
+    });
+  }
+}
+
+function navigateTo(index){
+  navPath=navPath.slice(0,index);
+  render();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* 拖拽（区域/楼盘列表） */
+function initSort(container,arr){
+  if(!container||!arr||!window.Sortable)return;
+  Sortable.create(container,{
+    group:'sort_'+getCurrentLevel(),
+    animation:180,
+    handle:'.drag',
+    ghostClass:'sortable-ghost',
+    chosenClass:'sortable-chosen',
+    dragClass:'sortable-drag',
+    onStart:function(){document.body.style.userSelect='none';},
+    onEnd:function(evt){
+      document.body.style.userSelect='';
+      const map={};arr.forEach(it=>map[it.id]=it);
+      const newArr=[];
+      container.querySelectorAll(':scope > [data-id]').forEach(el=>{
+        const id=el.dataset.id;
+        if(map[id])newArr.push(map[id]);
+      });
+      arr.length=0;newArr.forEach(it=>arr.push(it));
+      if(save()){toast('排序已保存','success');}
+      else{toast('保存失败','error');}
+    }
+  });
+}
+
+/* ========== 模态框 ========== */
+const modalBg=document.getElementById('modalBg');
+const modalTitle=document.getElementById('modalTitle');
+const modalBody=document.getElementById('modalBody');
+function openModal(title,icon,html){
+  modalTitle.innerHTML=`<i class="bi ${icon}"></i>${title}`;
+  modalBody.innerHTML=html;
+  modalBg.classList.add('show');
+}
+function closeModal(){modalBg.classList.remove('show');}
+document.getElementById('modalX').onclick=closeModal;
+modalBg.onclick=e=>{if(e.target===modalBg)closeModal();};
+
+function openAdd(parent,childLv){
+  const info=LV[childLv];
+  if(childLv===5){
+    openModal('添加客户','bi-person-plus',`
+      <div class="fg"><label>客户姓名 <span class="req">*</span></label><input type="text" id="i_t" placeholder="如：张先生" autofocus></div>
+      <div class="fg"><label>联系电话</label><input type="tel" id="i_ph" placeholder="如：13800138000"></div>
+      <div class="fg"><label>备注</label><textarea id="i_note" placeholder="如意向三室两厅"></textarea></div>
+      <div class="fg"><label>标签（逗号分隔）</label><input type="text" id="i_tags" placeholder="如：VIP, 高意向"></div>
+      <div class="warn-box info"><i class="bi bi-shield-check"></i><div>添加后自动保存到本地，客户资料安全保留</div></div>
+      <div class="modal-btns"><button class="btn btn-cancel" onclick="closeModal()">取消</button><button class="btn btn-ok" onclick="subAddClient('${parent.id}')"><i class="bi bi-check-lg"></i> 添加</button></div>
+    `);
+  }else{
+    openModal(`添加${info.n}`,'bi-plus-circle',`
+      <div class="fg"><label>${info.n}名称 <span class="req">*</span></label><input type="text" id="i_t" placeholder="${ph(childLv)}" autofocus></div>
+      <div class="warn-box info"><i class="bi bi-shield-check"></i><div>添加后自动保存到本地</div></div>
+      <div class="modal-btns"><button class="btn btn-cancel" onclick="closeModal()">取消</button><button class="btn btn-ok" onclick="subAddNode('${parent.id}',${childLv})"><i class="bi bi-check-lg"></i> 添加</button></div>
+    `);
+  }
+}
+function ph(lv){return{1:'如：合肥·包河区',2:'如：绿地中央广场',3:'如：8楼',4:'如：801室',5:'张先生'}[lv]||'';}
+
+function subAddNode(pid,childLv){
+  const t=document.getElementById('i_t').value.trim();
+  if(!t){toast('请输入名称','error');return;}
+  const f=find(pid);if(!f){toast('失败','error');return;}
+  if(!f.node.ch)f.node.ch=[];
+  f.node.ch.push({id:uid(),t,ch:childLv<5?[]:undefined,col:childLv===4?false:undefined});
+  if(save()){closeModal();render();toast(`${LV[childLv].n}已添加`,'success');}
+  else toast('保存失败','error');
+}
+function subAddClient(pid){
+  const t=document.getElementById('i_t').value.trim();
+  if(!t){toast('请输入客户姓名','error');return;}
+  const ph2=document.getElementById('i_ph').value.trim();
+  const note=document.getElementById('i_note').value.trim();
+  const tr=document.getElementById('i_tags').value.trim();
+  const tags=tr?tr.split(/[,，、]/).map(x=>x.trim()).filter(Boolean):[];
+  const f=find(pid);if(!f){toast('失败','error');return;}
+  if(!f.node.ch)f.node.ch=[];
+  f.node.ch.push({id:uid(),t,ph:ph2,note,tags});
+  if(save()){closeModal();render();toast('客户已添加','success');}
+  else toast('保存失败','error');
+}
+
+/* 顶层添加 */
+function openTopAdd(){
+  const curLv=getCurrentLevel();
+  const opts=[1,2,3,4,5].map(l=>{
+    const i=LV[l];
+    return `<div class="lp" data-l="${l}" onclick="pickLv(${l})">
+      <i class="bi ${i.ic}" style="color:var(--sky)"></i>
+      <div class="t">${i.n}</div>
+      <div class="d">${l===1?'直接添加':'需选父级'}</div>
+    </div>`;
+  }).join('');
+  openModal('添加新节点','bi-plus-circle',`<div class="level-pick">${opts}</div><div id="lvForm"></div>`);
+  pickLv(curLv);
+}
+function pickLv(l){
+  document.querySelectorAll('.lp').forEach(e=>e.classList.remove('on'));
+  document.querySelector(`.lp[data-l="${l}"]`).classList.add('on');
+  const form=document.getElementById('lvForm');
+  if(l===1){
+    form.innerHTML=`<div class="fg"><label>区域名称 <span class="req">*</span></label><input type="text" id="i_t" placeholder="如：合肥·包河区"></div>
+    <div class="warn-box info"><i class="bi bi-shield-check"></i><div>添加后自动保存到本地</div></div>
+    <div class="modal-btns"><button class="btn btn-cancel" onclick="closeModal()">取消</button><button class="btn btn-ok" onclick="subAddArea()"><i class="bi bi-check-lg"></i> 添加区域</button></div>`;
+  }else{
+    const pl=l-1;
+    const parents=collectByLevel(pl);
+    if(parents.length===0){
+      form.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text-3);font-size:14px;"><i class="bi bi-exclamation-circle" style="font-size:30px;display:block;margin-bottom:10px;"></i>请先添加${LV[pl].n}</div>`;
+      return;
+    }
+    let defaultPid=parents[0].id;
+    if(navPath.length>=pl){defaultPid=navPath[pl-1]||parents[0].id;}
+    let h=`<div class="fg"><label>选择所属${LV[pl].n} <span class="req">*</span></label><select id="i_par">${parents.map(p=>`<option value="${p.id}" ${p.id===defaultPid?'selected':''}>${esc(p.path)}</option>`).join('')}</select></div>`;
+    if(l===5){
+      h+=`<div class="fg"><label>客户姓名 <span class="req">*</span></label><input type="text" id="i_t" placeholder="如：张先生"></div>
+      <div class="fg"><label>联系电话</label><input type="tel" id="i_ph" placeholder="如：13800138000"></div>
+      <div class="fg"><label>备注</label><textarea id="i_note" placeholder="如意向三室两厅"></textarea></div>
+      <div class="fg"><label>标签（逗号分隔）</label><input type="text" id="i_tags" placeholder="如：VIP, 高意向"></div>`;
+    }else{
+      h+=`<div class="fg"><label>${LV[l].n}名称 <span class="req">*</span></label><input type="text" id="i_t" placeholder="${ph(l)}"></div>`;
+    }
+    h+=`<div class="warn-box info"><i class="bi bi-shield-check"></i><div>添加后自动保存到本地</div></div>
+    <div class="modal-btns"><button class="btn btn-cancel" onclick="closeModal()">取消</button><button class="btn btn-ok" onclick="subAddFromTop(${l})"><i class="bi bi-check-lg"></i> 添加</button></div>`;
+    form.innerHTML=h;
+  }
+}
+function collectByLevel(target,list=data,cur=1,path=''){
+  let r=[];
+  for(const it of list){
+    const p=path?`${path} / ${it.t}`:it.t;
+    if(cur===target)r.push({id:it.id,path:p});
+    if(it.ch&&cur<target)r=r.concat(collectByLevel(target,it.ch,cur+1,p));
+  }
+  return r;
+}
+function subAddArea(){
+  const t=document.getElementById('i_t').value.trim();
+  if(!t){toast('请输入区域名称','error');return;}
+  data.push({id:uid(),t,ch:[]});
+  if(save()){closeModal();render();toast('区域已添加','success');}
+  else toast('保存失败','error');
+}
+function subAddFromTop(l){
+  const t=document.getElementById('i_t').value.trim();
+  if(!t){toast('请输入名称','error');return;}
+  const pid=document.getElementById('i_par').value;
+  const f=find(pid);if(!f){toast('失败','error');return;}
+  if(!f.node.ch)f.node.ch=[];
+  if(l===5){
+    const ph2=document.getElementById('i_ph').value.trim();
+    const note=document.getElementById('i_note').value.trim();
+    const tr=document.getElementById('i_tags').value.trim();
+    const tags=tr?tr.split(/[,，、]/).map(x=>x.trim()).filter(Boolean):[];
+    f.node.ch.push({id:uid(),t,ph:ph2,note,tags});
+  }else{
+    f.node.ch.push({id:uid(),t,ch:[]});
+  }
+  if(save()){closeModal();render();toast(`${LV[l].n}已添加`,'success');}
+  else toast('保存失败','error');
+}
+
+/* 编辑 */
+function openEdit(n,lv){
+  if(lv===5){
+    openModal('编辑客户','bi-pencil-square',`
+      <div class="fg"><label>客户姓名 <span class="req">*</span></label><input type="text" id="i_t" value="${esc(n.t)}"></div>
+      <div class="fg"><label>联系电话</label><input type="tel" id="i_ph" value="${esc(n.ph||'')}"></div>
+      <div class="fg"><label>备注</label><textarea id="i_note">${esc(n.note||'')}</textarea></div>
+      <div class="fg"><label>标签（逗号分隔）</label><input type="text" id="i_tags" value="${esc((n.tags||[]).join(', '))}"></div>
+      <div class="warn-box info"><i class="bi bi-shield-check"></i><div>修改后自动保存，客户资料安全保留</div></div>
+      <div class="modal-btns"><button class="btn btn-cancel" onclick="closeModal()">取消</button><button class="btn btn-ok" onclick="subEdit('${n.id}')"><i class="bi bi-check-lg"></i> 保存修改</button></div>
+    `);
+  }else{
+    openModal(`编辑${LV[lv].n}`,'bi-pencil-square',`
+      <div class="fg"><label>${LV[lv].n}名称 <span class="req">*</span></label><input type="text" id="i_t" value="${esc(n.t)}"></div>
+      <div class="warn-box info"><i class="bi bi-shield-check"></i><div>修改后自动保存</div></div>
+      <div class="modal-btns"><button class="btn btn-cancel" onclick="closeModal()">取消</button><button class="btn btn-ok" onclick="subEdit('${n.id}')"><i class="bi bi-check-lg"></i> 保存修改</button></div>
+    `);
+  }
+}
+function subEdit(id){
+  const f=find(id);if(!f){toast('失败','error');return;}
+  const t=document.getElementById('i_t').value.trim();
+  if(!t){toast('请输入名称','error');return;}
+  f.node.t=t;
+  if(document.getElementById('i_ph')!==null)f.node.ph=document.getElementById('i_ph').value.trim();
+  if(document.getElementById('i_note')!==null)f.node.note=document.getElementById('i_note').value.trim();
+  if(document.getElementById('i_tags')!==null){
+    const tr=document.getElementById('i_tags').value.trim();
+    f.node.tags=tr?tr.split(/[,，、]/).map(x=>x.trim()).filter(Boolean):[];
+  }
+  if(save()){closeModal();render();toast('已保存','success');}
+  else toast('保存失败','error');
+}
+
+/* 删除 */
+function openDelete(n,lv){
+  const sub=countBy(n.ch||[],5);
+  const childN=n.ch?n.ch.length:0;
+  let warn='';
+  if(childN>0){
+    warn=`<div class="warn-box"><i class="bi bi-exclamation-triangle-fill"></i><div>该${LV[lv].n}下有 <b>${childN}</b> 个子节点${sub>0?`（含 <b>${sub}</b> 位客户）`:''}，删除后不可恢复。</div></div>`;
+  }
+  openModal(`删除${LV[lv].n}`,'bi-trash3',`
+    ${warn}
+    <p style="font-size:15px;margin-bottom:8px;">确定删除「<b>${esc(n.t)}</b>」？</p>
+    <p style="font-size:13px;color:var(--text-3);">此操作不可撤销。</p>
+    <div class="modal-btns"><button class="btn btn-cancel" onclick="closeModal()">取消</button><button class="btn btn-danger" onclick="subDelete('${n.id}')"><i class="bi bi-trash3"></i> 确认删除</button></div>
+  `);
+}
+function subDelete(id){
+  const f=find(id);if(!f){toast('失败','error');return;}
+  const idx=f.list.indexOf(f.node);
+  if(idx>-1)f.list.splice(idx,1);
+  if(save()){
+    closeModal();
+    if(navPath.includes(id)){navPath=navPath.slice(0,navPath.indexOf(id));}
+    render();
+    toast('已删除','success');
+  }
+  else toast('保存失败','error');
+}
+
+/* ========== 搜索 ========== */
+const searchInput=document.getElementById('searchInput');
+const searchPanel=document.getElementById('searchPanel');
+const clearBtn=document.getElementById('clearBtn');
+let stimer=null;
+searchInput.addEventListener('input',()=>{
+  clearTimeout(stimer);
+  clearBtn.classList.toggle('show',searchInput.value.length>0);
+  stimer=setTimeout(doSearch,180);
+});
+clearBtn.onclick=()=>{searchInput.value='';clearBtn.classList.remove('show');searchPanel.classList.remove('show');searchInput.focus();};
+
+/* 安全转字符串：兼容数字/布尔/null/对象等异常数据，避免 toLowerCase 报错 */
+function safeStr(v){
+  if(v===undefined||v===null)return'';
+  if(typeof v==='string')return v;
+  if(typeof v==='object'){try{return JSON.stringify(v);}catch(e){return'';}}
+  return String(v);
+}
+function doSearch(){
+  const q=searchInput.value.trim().toLowerCase();
+  if(!q){searchPanel.classList.remove('show');return;}
+  let res=[];
+  try{ res=searchTree(q); }
+  catch(e){
+    console.error('搜索出错',e);
+    searchPanel.innerHTML='<div class="sr-empty"><i class="bi bi-exclamation-triangle"></i> 数据中存在异常内容，已跳过。请尝试其他关键词。</div>';
+    searchPanel.classList.add('show');
+    return;
+  }
+  if(res.length===0){
+    searchPanel.innerHTML='<div class="sr-empty"><i class="bi bi-emoji-frown"></i> 未找到相关结果</div>';
+  }else{
+    // 按层级分组展示：客户优先，其次室/楼层/楼盘/区域
+    const groups=[
+      {lv:5,name:'客户',icon:'bi-person-fill'},
+      {lv:4,name:'室',icon:'bi-door-open-fill'},
+      {lv:3,name:'楼层',icon:'bi-layers-fill'},
+      {lv:2,name:'楼盘',icon:'bi-buildings-fill'},
+      {lv:1,name:'区域',icon:'bi-geo-alt-fill'}
+    ];
+    let html='';
+    let total=res.length;
+    html+=`<div class="sr-count">共找到 <b>${total}</b> 条相关结果</div>`;
+    for(const g of groups){
+      const items=res.filter(r=>r.lv===g.lv);
+      if(items.length===0)continue;
+      html+=`<div class="sr-group"><i class="bi ${g.icon}"></i> ${g.name}（${items.length}）</div>`;
+      html+=items.map(r=>`
+        <div class="sr-item" onclick="locate('${r.id}')">
+          <div class="sr-path">${esc(r.path)}</div>
+          <div class="sr-title">${hl(r.title,q)}</div>
+          ${r.ph?`<div class="sr-phone"><i class="bi bi-telephone-fill"></i>${hl(r.ph,q)}</div>`:''}
+          ${r.note?`<div class="sr-phone"><i class="bi bi-sticky"></i>${hl(r.note,q)}</div>`:''}
+          ${r.tags&&r.tags.length?`<div class="sr-tags">${r.tags.map(t=>`<span class="sr-tag">${esc(t)}</span>`).join('')}</div>`:''}
+        </div>`).join('');
+    }
+    searchPanel.innerHTML=html;
+  }
+  searchPanel.classList.add('show');
+}
+/**
+ * 搜索：匹配节点自身及其所有子孙节点
+ * —— 搜"置地"时，会同时列出"置地广场E座"以及它下面的全部楼层/房间/客户
+ * 逻辑：先判断自己是否命中；命中则把整棵子树全部带出；未命中则看子孙是否有命中
+ */
+function collectAll(list,path,lv){
+  // 无条件收集整棵子树
+  let r=[];
+  for(const it of (list||[])){
+    if(!it||typeof it!=='object')continue;
+    const title=safeStr(it.t);
+    const p=path?`${path} / ${title}`:title;
+    r.push({
+      id:it.id,title:title,ph:safeStr(it.ph),note:safeStr(it.note),
+      path:p,tags:Array.isArray(it.tags)?it.tags.map(safeStr).filter(Boolean):[],
+      lv:lv,hit:false
+    });
+    if(Array.isArray(it.ch)&&it.ch.length)r=r.concat(collectAll(it.ch,p,lv+1));
+  }
+  return r;
+}
+function searchTree(q,list,path,lv){
+  list=list||[];
+  path=path||'';
+  lv=lv||1;
+  let r=[];
+  for(const it of list){
+    if(!it||typeof it!=='object')continue;
+    const title=safeStr(it.t);
+    const p=path?`${path} / ${title}`:title;
+    const ph=safeStr(it.ph);
+    const note=safeStr(it.note);
+    const tags=Array.isArray(it.tags)?it.tags.map(safeStr).filter(Boolean):[];
+    const children=Array.isArray(it.ch)?it.ch.filter(c=>c&&typeof c==='object'):[];
+
+    // 1) 判断节点自身是否命中（名称/电话/备注/标签，忽略大小写）
+    const tm=title.toLowerCase().includes(q);
+    const pm=ph.toLowerCase().includes(q);
+    const nm=note.toLowerCase().includes(q);
+    const gm=tags.some(t=>t.toLowerCase().includes(q));
+    const selfHit=tm||pm||nm||gm;
+
+    if(selfHit){
+      // 命中：把自己和整棵子树全部列出（这样搜"置地"能看到里面所有客户）
+      r.push({id:it.id,title:title,ph:ph,note:note,path:p,tags:tags,lv:lv,hit:true});
+      if(children.length)r=r.concat(collectAll(children,p,lv+1));
+    }else if(children.length){
+      // 自己不中：递归找子孙，子孙有命中就把自己作为定位入口一起列出
+      const sub=searchTree(q,children,p,lv+1);
+      if(sub.length>0){
+        r.push({id:it.id,title:title,ph:ph,note:note,path:p,tags:tags,lv:lv,hit:false});
+        r=r.concat(sub);
+      }
+    }
+  }
+  return r;
+}
+function hl(text,q){
+  if(!text)return'';
+  const re=new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi');
+  return esc(text).replace(re,'<mark>$1</mark>');
+}
+function locate(id){
+  const path=findPath(id);
+  if(!path)return;
+  // 导航到包含该节点的楼层页面
+  // path: [area, building, floor, room?, client?]
+  // 找到该节点所在楼层，导航到该楼层
+  let floorIdx=-1;
+  for(let i=0;i<path.length;i++){
+    if(path[i].ch&&path[i].ch.length>0&&path[i].ch[0]&&path[i].ch[0].t!==undefined&&!path[i].ch[0].ph&&path[i].ch[0].ch){
+      // 有子节点且子节点有ch说明不是客户层
+    }
+  }
+  // 简单逻辑：导航到路径上第3个节点（楼层）
+  if(path.length>=3){
+    navPath=[path[0].id,path[1].id];
+    // 如果目标是室或客户，展开对应室
+    if(path.length>=4){
+      const room=path[3];
+      setCol(room,false);
+    }
+  }else if(path.length===2){
+    navPath=[path[0].id];
+  }else if(path.length===1){
+    navPath=[];
+  }
+  render();
+  closeModal();
+  setTimeout(()=>{
+    const el=document.querySelector(`[data-id="${id}"],[data-room-id="${id}"]`);
+    if(el){
+      el.scrollIntoView({behavior:'smooth',block:'center'});
+      el.style.transition='box-shadow .3s';
+      el.style.boxShadow='0 0 0 3px var(--sky), 0 8px 24px rgba(14,165,233,0.2)';
+      setTimeout(()=>el.style.boxShadow='',2000);
+    }
+  },100);
+  searchPanel.classList.remove('show');
+  searchInput.value='';clearBtn.classList.remove('show');
+  toast('已定位','info');
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.search-box'))searchPanel.classList.remove('show');});
+
+document.getElementById('fab').onclick=openTopAdd;
+
+/* ========== 导入导出 ========== */
+const fileInput=document.getElementById('fileInput');
+document.getElementById('ioBtn').onclick=()=>{
+  openModal('导入 / 导出数据','bi-arrow-down-up-square',`
+    <div class="io-grid">
+      <div class="io-card" onclick="exportData()">
+        <div class="io-icon"><i class="bi bi-file-earmark-spreadsheet"></i></div>
+        <div class="io-text"><div class="io-t">导出Excel表格</div><div class="io-d">导出所有客户资料为Excel表格，可直接查看</div></div>
+      </div>
+      <div class="io-card" onclick="document.getElementById('fileInput').click()">
+        <div class="io-icon" style="background:var(--green);"><i class="bi bi-upload"></i></div>
+        <div class="io-text"><div class="io-t">导入数据</div><div class="io-d">从Excel或JSON文件恢复客户资料</div></div>
+      </div>
+    </div>
+    <div class="warn-box info"><i class="bi bi-info-circle-fill"></i><div>客户资料重要，建议定期导出备份。导入会覆盖当前数据。</div></div>
+    <div class="modal-btns"><button class="btn btn-cancel" onclick="closeModal()">关闭</button></div>
+  `);
+};
+/* 导出Excel：把树状数据扁平化为表格行 */
+function exportData(){
+  const rows=[];
+  function walk(node,lv,path){
+    const curPath=path?[...path,node.t]:[node.t];
+    // 客户层（第5层）：输出一行
+    if(lv===5){
+      rows.push({
+        '区域':path[0]||'',
+        '楼盘':path[1]||'',
+        '楼层':path[2]||'',
+        '室':path[3]||'',
+        '客户姓名':node.t||'',
+        '联系电话':node.ph||'',
+        '备注':node.note||'',
+        '标签':(node.tags||[]).join('、')
+      });
+    }
+    if(node.ch&&node.ch.length){
+      node.ch.forEach(c=>walk(c,lv+1,curPath));
+    }
+  }
+  data.forEach(n=>walk(n,1,[]));
+
+  if(rows.length===0){toast('暂无客户数据可导出','error');return;}
+
+  const ws=XLSX.utils.json_to_sheet(rows);
+  // 设置列宽
+  ws['!cols']=[{wch:14},{wch:16},{wch:8},{wch:10},{wch:12},{wch:16},{wch:24},{wch:16}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'客户资料');
+  XLSX.writeFile(wb,`客户资料_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast(`已导出${rows.length}条客户记录`,'success');
+}
+fileInput.addEventListener('change',function(e){
+  const file=e.target.files[0];if(!file)return;
+  const fileName=file.name.toLowerCase();
+  
+  if(fileName.endsWith('.xlsx')||fileName.endsWith('.xls')){
+    // Excel导入
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        const wb=XLSX.read(ev.target.result,{type:'array'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const rows=XLSX.utils.sheet_to_json(ws);
+        if(rows.length===0)throw new Error('表格为空');
+        // 把扁平表格转回树结构
+        const imported=rowsToTree(rows);
+        if(imported.length===0)throw new Error('无有效数据');
+        showImportConfirm(imported,'Excel');
+      }catch(err){toast('Excel解析失败：'+err.message,'error');}
+    };
+    reader.readAsArrayBuffer(file);
+  }else{
+    // JSON导入（兼容旧格式）
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        const imported=JSON.parse(ev.target.result);
+        if(!Array.isArray(imported))throw new Error('格式不对');
+        if(imported.length>0&&!imported[0].t)throw new Error('格式不对');
+        showImportConfirm(imported,'JSON');
+      }catch(err){toast('文件格式错误','error');}
+    };
+    reader.readAsText(file);
+  }
+  fileInput.value='';
+});
+
+/* 把Excel表格行转回树结构 */
+function rowsToTree(rows){
+  const root=[];
+  const areaMap={},buildingMap={},floorMap={},roomMap={};
+  
+  rows.forEach(row=>{
+    // Excel 里的数字/日期单元格会被解析为非字符串，统一转成字符串，避免后续报错
+    const area=safeStr(row['区域']).trim();
+    const building=safeStr(row['楼盘']).trim();
+    const floor=safeStr(row['楼层']).trim();
+    const room=safeStr(row['室']).trim();
+    const name=safeStr(row['客户姓名']).trim();
+    const phone=safeStr(row['联系电话']).trim();
+    const note=safeStr(row['备注']).trim();
+    const tagsStr=safeStr(row['标签']).trim();
+    const tags=tagsStr?tagsStr.split(/[、,，]/).map(t=>t.trim()).filter(Boolean):[];
+    
+    if(!area)return;
+    
+    // 区域
+    if(!areaMap[area]){
+      const node={id:uid(),t:area,ch:[]};
+      areaMap[area]=node;
+      root.push(node);
+    }
+    const areaNode=areaMap[area];
+    
+    if(!building)return;
+    // 楼盘
+    const bKey=area+'|'+building;
+    if(!buildingMap[bKey]){
+      const node={id:uid(),t:building,ch:[]};
+      buildingMap[bKey]=node;
+      areaNode.ch.push(node);
+    }
+    const bNode=buildingMap[bKey];
+    
+    if(!floor)return;
+    // 楼层
+    const fKey=area+'|'+building+'|'+floor;
+    if(!floorMap[fKey]){
+      const node={id:uid(),t:floor,ch:[]};
+      floorMap[fKey]=node;
+      bNode.ch.push(node);
+    }
+    const fNode=floorMap[fKey];
+    
+    if(!room)return;
+    // 室
+    const rKey=area+'|'+building+'|'+floor+'|'+room;
+    if(!roomMap[rKey]){
+      const node={id:uid(),t:room,col:false,ch:[]};
+      roomMap[rKey]=node;
+      fNode.ch.push(node);
+    }
+    const rNode=roomMap[rKey];
+    
+    // 客户
+    if(name){
+      rNode.ch.push({id:uid(),t:name,ph:phone,note,tags});
+    }
+  });
+  
+  return root;
+}
+
+function showImportConfirm(imported,type){
+  const clientCount=countBy(imported,5);
+  const curArea=countBy(data,1), curClient=countBy(data,5);
+  openModal('选择导入方式','bi-exclamation-triangle',`
+    <div class="warn-box info"><i class="bi bi-info-circle-fill"></i><div>即将导入（${type}）：<b>${imported.length}</b> 个区域，<b>${clientCount}</b> 位客户。<br>当前已有：<b>${curArea}</b> 个区域，<b>${curClient}</b> 位客户。</div></div>
+    <div style="margin-bottom:10px;">
+      <button onclick="confirmMergeImport()" style="width:100%;padding:14px;border:2px solid #10b981;border-radius:10px;background:#ecfdf5;color:#065f46;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px;display:flex;align-items:center;gap:8px;justify-content:center;">
+        <i class="bi bi-union" style="font-size:18px;"></i> 合并导入（保留现有+追加新数据）
+      </button>
+      <p style="font-size:12px;color:#64748b;text-align:center;margin-bottom:14px;">不会删除现有客户，导入文件中的新区域/客户会追加进来</p>
+      <button onclick="confirmImport()" style="width:100%;padding:14px;border:2px solid #ef4444;border-radius:10px;background:#fef2f2;color:#991b1b;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:center;">
+        <i class="bi bi-arrow-repeat" style="font-size:18px;"></i> 覆盖导入（删除现有，替换为新数据）
+      </button>
+      <p style="font-size:12px;color:#64748b;text-align:center;margin-top:6px;">⚠ 会删除当前所有数据，请确认已导出备份</p>
+    </div>
+    <div class="modal-btns"><button class="btn btn-cancel" onclick="closeModal()">取消</button></div>
+  `);
+  window._pendingImport=imported;
+}
+/* 合并导入：把导入的数据追加到现有数据，不删除已有 */
+function confirmMergeImport(){
+  if(!window._pendingImport)return;
+  const imported=window._pendingImport;
+  window._pendingImport=null;
+  
+  // 合并逻辑：按区域名称去重，同名的区域合并其子节点
+  imported.forEach(impArea=>{
+    // 查找现有数据中是否有同名区域
+    const existing=data.find(d=>d.t===impArea.t);
+    if(existing){
+      // 同名区域，合并楼盘
+      if(impArea.ch){
+        impArea.ch.forEach(impBuilding=>{
+          const exBuilding=existing.ch.find(b=>b.t===impBuilding.t);
+          if(exBuilding){
+            // 同名楼盘，合并楼层
+            if(impBuilding.ch){
+              impBuilding.ch.forEach(impFloor=>{
+                const exFloor=exBuilding.ch.find(f=>f.t===impFloor.t);
+                if(exFloor){
+                  // 同名楼层，合并室
+                  if(impFloor.ch){
+                    impFloor.ch.forEach(impRoom=>{
+                      const exRoom=exFloor.ch.find(r=>r.t===impRoom.t);
+                      if(exRoom){
+                        // 同名室，合并客户（按客户姓名+电话去重）
+                        if(impRoom.ch){
+                          impRoom.ch.forEach(impClient=>{
+                            const dup=exRoom.ch.find(c=>c.t===impClient.t&&(c.ph||'')===(impClient.ph||''));
+                            if(!dup){
+                              exRoom.ch.push(impClient);
+                            }
+                          });
+                        }
+                      }else{
+                        // 新室，直接添加
+                        exFloor.ch.push(impRoom);
+                      }
+                    });
+                  }
+                }else{
+                  // 新楼层，直接添加
+                  exBuilding.ch.push(impFloor);
+                }
+              });
+            }
+          }else{
+            // 新楼盘，直接添加
+            existing.ch.push(impBuilding);
+          }
+        });
+      }
+    }else{
+      // 新区域，直接添加
+      data.push(impArea);
+    }
+  });
+  
+  if(save()){closeModal();render();toast(`合并导入成功，现有数据已保留`,'success');}
+  else toast('保存失败','error');
+}
+
+function confirmImport(){
+  if(!window._pendingImport)return;
+  data=window._pendingImport;navPath=[];colSet=new Set();
+  window._pendingImport=null;
+  if(save()){saveCol();closeModal();render();toast('覆盖导入成功','success');}
+  else toast('保存失败','error');
+}
+
+/* ========== Toast ========== */
+const toastEl=document.getElementById('toast');
+let toastTimer=null;
+function toast(msg,type='success'){
+  toastEl.className='toast '+type;
+  toastEl.textContent=msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2000);
+}
+
+/* 返回键 */
+window.addEventListener('popstate',function(e){
+  if(modalBg.classList.contains('show')){closeModal();return;}
+  if(navPath.length>0){navPath.pop();render();window.scrollTo({top:0,behavior:'smooth'});}
+});
+
+// 初始化：检查登录状态
+// data先加载本地缓存，登录后从云端同步
+data = loadAndInit();
+checkAuth();
+console.log('%c客户管理工作台 v5 云端版已启动','color:#0ea5e9;font-weight:bold;');
+</script>
+</body>
+</html>
