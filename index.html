@@ -688,15 +688,22 @@ function tryMigrateOld(){
 /* 迁移旧数据结构：补齐ch数组、col字段，旧结构楼层直接挂客户的需要加室层级 */
 function migrateData(list){
   function walk(n,lv){
+    if(!n||typeof n!=='object')return;
+    // 强制规范化字段类型：标题/电话/备注必须是字符串，防止 toLowerCase 等调用报错
+    if(!n.id)n.id=uid();
+    n.t=safeStr(n.t)||'（未命名）';
+    if(n.ph!==undefined&&n.ph!==null&&n.ph!=='')n.ph=safeStr(n.ph);
+    if(n.note!==undefined&&n.note!==null&&n.note!=='')n.note=safeStr(n.note);
+    if(n.tags&&!Array.isArray(n.tags))n.tags=[safeStr(n.tags)];
     // 旧版v4及之前是4层（区域→楼盘→楼层→客户），v5是5层（多了"室"）
     // 如果楼层(lv=3)的子节点没有ch字段，说明是旧结构，需要包裹一层"室"
-    if(lv===3&&n.ch&&n.ch.length>0){
+    if(lv===3&&Array.isArray(n.ch)&&n.ch.length>0){
       // 检查子节点是否是客户（有ph字段，没有ch）
-      const hasOldClients=n.ch.some(c=>c.ph!==undefined&&!c.ch);
+      const hasOldClients=n.ch.some(c=>c&&typeof c==='object'&&c.ph!==undefined&&!c.ch);
       if(hasOldClients){
         // 把这些客户包裹到一个"默认室"里
-        const clients=n.ch.filter(c=>c.ph!==undefined&&!c.ch);
-        const others=n.ch.filter(c=>!(c.ph!==undefined&&!c.ch));
+        const clients=n.ch.filter(c=>c&&typeof c==='object'&&c.ph!==undefined&&!c.ch);
+        const others=n.ch.filter(c=>!(c&&typeof c==='object'&&c.ph!==undefined&&!c.ch));
         if(clients.length>0){
           const room={id:uid(),t:'默认室',col:false,ch:clients};
           n.ch=[...others,room];
@@ -704,13 +711,13 @@ function migrateData(list){
       }
     }
     if(lv<5){
-      if(!n.ch)n.ch=[];
+      if(!Array.isArray(n.ch))n.ch=[];
       n.ch.forEach(c=>walk(c,lv+1));
     }
     // 室（第4层）需要col字段
     if(lv===4&&n.col===undefined)n.col=false;
   }
-  list.forEach(n=>walk(n,1));
+  if(Array.isArray(list))list.forEach(n=>walk(n,1));
 }
 
 function load(){return loadAndInit();}
@@ -1349,16 +1356,30 @@ searchInput.addEventListener('input',()=>{
 });
 clearBtn.onclick=()=>{searchInput.value='';clearBtn.classList.remove('show');searchPanel.classList.remove('show');searchInput.focus();};
 
+/* 安全转字符串：兼容数字/布尔/null/对象等异常数据，避免 toLowerCase 报错 */
+function safeStr(v){
+  if(v===undefined||v===null)return'';
+  if(typeof v==='string')return v;
+  if(typeof v==='object'){try{return JSON.stringify(v);}catch(e){return'';}}
+  return String(v);
+}
 function doSearch(){
   const q=searchInput.value.trim().toLowerCase();
   if(!q){searchPanel.classList.remove('show');return;}
-  const res=searchTree(q);
+  let res=[];
+  try{ res=searchTree(q); }
+  catch(e){
+    console.error('搜索出错',e);
+    searchPanel.innerHTML='<div class="sr-empty"><i class="bi bi-exclamation-triangle"></i> 数据中存在异常内容，已跳过。请尝试其他关键词。</div>';
+    searchPanel.classList.add('show');
+    return;
+  }
   if(res.length===0){
     searchPanel.innerHTML='<div class="sr-empty"><i class="bi bi-emoji-frown"></i> 未找到相关结果</div>';
   }else{
     searchPanel.innerHTML=res.map(r=>`
       <div class="sr-item" onclick="locate('${r.id}')">
-        <div class="sr-path">${r.path}</div>
+        <div class="sr-path">${esc(r.path)}</div>
         <div class="sr-title">${hl(r.title,q)}</div>
         ${r.ph?`<div class="sr-phone"><i class="bi bi-telephone-fill"></i>${hl(r.ph,q)}</div>`:''}
         ${r.note?`<div class="sr-phone"><i class="bi bi-sticky"></i>${hl(r.note,q)}</div>`:''}
@@ -1366,16 +1387,20 @@ function doSearch(){
   }
   searchPanel.classList.add('show');
 }
-function searchTree(q,list=data,path=''){
+function searchTree(q,list,path){
+  list=list||[];
+  path=path||'';
   let r=[];
   for(const it of list){
-    const p=path?`${path} / ${it.t}`:it.t;
-    const tm=it.t.toLowerCase().includes(q);
-    const pm=it.ph&&it.ph.toLowerCase().includes(q);
-    const nm=it.note&&it.note.toLowerCase().includes(q);
-    const gm=it.tags&&it.tags.some(t=>t.toLowerCase().includes(q));
-    if(tm||pm||nm||gm)r.push({id:it.id,title:it.t,ph:it.ph||'',note:it.note||'',path:p});
-    if(it.ch)r=r.concat(searchTree(q,it.ch,p));
+    if(!it||typeof it!=='object')continue;
+    const title=safeStr(it.t);
+    const p=path?`${path} / ${title}`:title;
+    const tm=title.toLowerCase().includes(q);
+    const pm=safeStr(it.ph).toLowerCase().includes(q);
+    const nm=safeStr(it.note).toLowerCase().includes(q);
+    const gm=Array.isArray(it.tags)&&it.tags.some(t=>safeStr(t).toLowerCase().includes(q));
+    if(tm||pm||nm||gm)r.push({id:it.id,title:title,ph:safeStr(it.ph),note:safeStr(it.note),path:p});
+    if(Array.isArray(it.ch)&&it.ch.length)r=r.concat(searchTree(q,it.ch,p));
   }
   return r;
 }
@@ -1522,14 +1547,15 @@ function rowsToTree(rows){
   const areaMap={},buildingMap={},floorMap={},roomMap={};
   
   rows.forEach(row=>{
-    const area=row['区域']||'';
-    const building=row['楼盘']||'';
-    const floor=row['楼层']||'';
-    const room=row['室']||'';
-    const name=row['客户姓名']||'';
-    const phone=row['联系电话']||'';
-    const note=row['备注']||'';
-    const tagsStr=row['标签']||'';
+    // Excel 里的数字/日期单元格会被解析为非字符串，统一转成字符串，避免后续报错
+    const area=safeStr(row['区域']).trim();
+    const building=safeStr(row['楼盘']).trim();
+    const floor=safeStr(row['楼层']).trim();
+    const room=safeStr(row['室']).trim();
+    const name=safeStr(row['客户姓名']).trim();
+    const phone=safeStr(row['联系电话']).trim();
+    const note=safeStr(row['备注']).trim();
+    const tagsStr=safeStr(row['标签']).trim();
     const tags=tagsStr?tagsStr.split(/[、,，]/).map(t=>t.trim()).filter(Boolean):[];
     
     if(!area)return;
