@@ -13,7 +13,29 @@
 <script src="https://unpkg.com/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script>if(!window.supabase){ document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>'); }</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+/* 三路兜底加载 supabase：不用 document.write（它会清空页面），改用 DOM 插入 */
+(function(){
+  if(window.supabase) return;
+  var urls=[
+    'https://cdnjs.cloudflare.com/ajax/libs/supabase-js/2.39.0/supabase.min.js',
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js'
+  ];
+  var i=0;
+  function next(){
+    if(window.supabase) return;
+    if(i>=urls.length){ console.error('[supabase] 所有 CDN 均加载失败'); return; }
+    var s=document.createElement('script');
+    s.src=urls[i++];
+    s.onload=function(){ if(!window.supabase) next(); };
+    s.onerror=next;
+    document.head.appendChild(s);
+  }
+  next();
+})();
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
 :root{
@@ -350,7 +372,14 @@ mark{background:#fef9c3;color:inherit;padding:0 2px;border-radius:3px;}
 // ⚠️ 请把下面两个值替换成你自己的 Supabase 项目密钥
 const SUPABASE_URL = 'https://nxmsheabkkzyjvocqqpk.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54bXNoZWFia2t6eWp2b2NxcXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzODkxNzMsImV4cCI6MjEwMDk2NTE3M30.YYkFUcifHuv3zg4wYiJIYpfhvJ971cW_u-esHpu6DK0';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// 关键保护：supabase 库没加载成功时不能抛错（否则整个程序中断，搜索/列表全废）
+let sb = null;
+if(window.supabase){
+  try{ sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); }
+  catch(e){ console.error('[supabase] 初始化失败', e); }
+}else{
+  console.error('[supabase] 库未加载，将以纯本地模式运行');
+}
 let cloudEnabled = false;
 let currentUser = null;
 
@@ -358,6 +387,7 @@ async function doLogin() {
   const u = document.getElementById('authUser').value.trim();
   const p = document.getElementById('authPass').value;
   if(!u||!p){showAuthError('请输入用户名和密码');return;}
+  if(!sb){ showAuthError('云端服务未加载，请检查网络后刷新页面'); return; }
   // 把用户名转成邮箱格式（Supabase需要email）
   const email = u.includes('@') ? u : u + '@client.local';
   try {
@@ -381,6 +411,7 @@ async function doRegister() {
   if(!u||!p){showAuthError('请输入用户名和密码');return;}
   if(u.length<2){showAuthError('用户名至少2个字符');return;}
   if(p.length<6){showAuthError('密码至少6位');return;}
+  if(!sb){ showAuthError('云端服务未加载，请检查网络后刷新页面'); return; }
   const email = u.includes('@') ? u : u + '@client.local';
   try {
     const { data, error } = await sb.auth.signUp({ 
@@ -415,7 +446,7 @@ async function enterApp() {
   if(!currentUser) { document.getElementById('authOverlay').style.display='flex'; return; }
   
   // 显示用户名
-  const displayName = currentUser.user_metadata?.username || currentUser.email.split('@')[0];
+  const displayName = (currentUser.user_metadata && currentUser.user_metadata.username) || (currentUser.email||'').split('@')[0] || '用户';
   document.getElementById('userBarName').textContent = displayName;
   cloudEnabled = true;
   
@@ -431,9 +462,30 @@ async function enterApp() {
     
     if(!error && rows && rows.length > 0 && rows[0].data) {
       // 云端有数据
-      data = rows[0].data;
-      migrateData(data);
-      localStorage.setItem(K_DATA, JSON.stringify(data));
+      let cloud = rows[0].data;
+      // ---- 兼容各种历史格式，并防止坏数据覆盖本地 ----
+      if(cloud && !Array.isArray(cloud) && Array.isArray(cloud.data)) cloud = cloud.data;
+      if(cloud && !Array.isArray(cloud) && Array.isArray(cloud.tree)) cloud = cloud.tree;
+      if(typeof cloud === 'string'){ try{ cloud = JSON.parse(cloud); }catch(_){ cloud = null; } }
+      if(Array.isArray(cloud)) migrateData(cloud);
+      // 云端是空数组或格式不对时，不覆盖本地：本地有数据就用本地
+      const cloudEmpty = !Array.isArray(cloud) || cloud.length === 0;
+      if(cloudEmpty){
+        const localRaw = localStorage.getItem(K_DATA);
+        let localData = null;
+        try{ const p = localRaw ? JSON.parse(localRaw) : null; if(Array.isArray(p)) localData = p; }catch(_){}
+        if(localData && localData.length > 0){
+          data = localData;
+          migrateData(data);
+          console.warn('[云端数据为空，保留本地数据]');
+          setTimeout(cloudSave, 0);   // 把本地数据推回云端，修复云端空数据
+        }else{
+          data = loadAndInit();
+        }
+      }else{
+        data = cloud;
+        try{ localStorage.setItem(K_DATA, JSON.stringify(data)); }catch(_){}
+      }
       render();
     } else {
       // 云端无数据，尝试本地迁移
@@ -459,7 +511,8 @@ async function enterApp() {
 
 async function logout() {
   if(!confirm('确定退出登录？')) return;
-  await sb.auth.signOut();
+  if(!sb){ currentUser = null; location.reload(); return; }
+  try{ await sb.auth.signOut(); }catch(e){}
   currentUser = null;
   location.reload();
 }
@@ -502,6 +555,7 @@ async function doChangePass() {
   if(!oldP||!newP1||!newP2){showCPError('请填写所有字段');return;}
   if(newP1.length<6){showCPError('新密码至少6位');return;}
   if(newP1!==newP2){showCPError('两次新密码不一致');return;}
+  if(!sb){showCPError('云端服务未加载，无法修改密码');return;}
   try {
     const { data: { user } } = await sb.auth.getUser();
     if(!user){showCPError('请先登录');return;}
@@ -543,13 +597,25 @@ function cloudSaveDebounced() {
 }
 
 async function cloudSave() {
-  if(!cloudEnabled || !currentUser) return;
+  if(!cloudEnabled || !currentUser || !sb) return;
+  // 绝不把非数组/空数据推到云端，否则会反过来覆盖掉本地数据
+  if(!Array.isArray(data)){ console.warn('[cloudSave] data 不是数组，跳过云端保存'); return; }
   setSyncStatus('saving');
   try {
+    // 先尝试按 user_id 更新（每个用户只保留一条，避免表无限膨胀）
+    const { data: updated, error: upErr } = await sb
+      .from('client_data')
+      .update({ data: data, updated_at: new Date().toISOString() })
+      .eq('user_id', currentUser.id)
+      .select('id');
+
+    if(!upErr && updated && updated.length > 0) { setSyncStatus('ok'); return; }
+
+    // 没有记录则插入一条
     const { error } = await sb
       .from('client_data')
       .insert({ user_id: currentUser.id, data: data });
-    
+
     if(!error) { setSyncStatus('ok'); }
     else { setSyncStatus('error'); console.error(error); }
   } catch(e) {
@@ -560,6 +626,16 @@ async function cloudSave() {
 
 // 页面打开时检查登录状态
 async function checkAuth() {
+  if(!sb){
+    // 云端库没加载：直接进本地模式，不能让用户卡在登录页
+    console.warn('[checkAuth] 无 supabase，进入本地模式');
+    document.getElementById('authOverlay').style.display = 'none';
+    document.getElementById('userBar').style.display = 'none';
+    cloudEnabled = false;
+    data = loadAndInit();
+    render();
+    return;
+  }
   try {
     const { data: { session } } = await sb.auth.getSession();
     if(session && session.user) {
@@ -634,7 +710,11 @@ function loadAndInit(){
     const r=localStorage.getItem(K_DATA);
     if(r){
       const parsed=JSON.parse(r);
-      if(parsed&&Array.isArray(parsed)&&parsed.length>0){
+      // 兼容 {data:[...] / tree:[...]} 包装格式
+      let arr = parsed;
+      if(arr && !Array.isArray(arr) && Array.isArray(arr.data)) arr = arr.data;
+      if(arr && !Array.isArray(arr) && Array.isArray(arr.tree)) arr = arr.tree;
+      if(arr&&Array.isArray(arr)&&arr.length>0){
         // 检查是否是默认空数据（没有用户自定义内容）
         // 如果是默认数据且旧版本有数据，需要迁移
         const oldMigrated=localStorage.getItem('cm_migrated_v5');
@@ -650,11 +730,11 @@ function loadAndInit(){
           }
           localStorage.setItem('cm_migrated_v5','1');
         }
-        migrateData(parsed);
-        return parsed;
+        migrateData(arr);
+        return arr;
       }
     }
-  }catch(e){}
+  }catch(e){ console.warn('[loadAndInit] 本地数据解析失败', e); }
   // 尝试从旧版本迁移
   const oldData=tryMigrateOld();
   if(oldData){
@@ -723,7 +803,9 @@ function migrateData(list){
     // 室（第4层）需要col字段
     if(lv===4&&n.col===undefined)n.col=false;
   }
-  if(Array.isArray(list))list.forEach(n=>walk(n,1));
+  if(!Array.isArray(list)){ console.warn('[migrateData] 传入的不是数组，已忽略：', list); return false; }
+  list.forEach(n=>walk(n,1));
+  return true;
 }
 
 function load(){return loadAndInit();}
@@ -749,7 +831,7 @@ function findPath(id,list=data,path=[]){
   for(const it of list){const np=[...path,it];if(it.id===id)return np;if(it.ch){const r=findPath(id,it.ch,np);if(r)return r;}}
   return null;
 }
-function countBy(list,lv,cur=1){let c=0;for(const it of list){if(cur===lv)c++;if(it.ch)c+=countBy(it.ch,lv,cur+1);}return c;}
+function countBy(list,lv,cur=1){let c=0;for(const it of (Array.isArray(list)?list:[])){if(!it||typeof it!=='object')continue;if(cur===lv)c++;if(it.ch)c+=countBy(it.ch,lv,cur+1);}return c;}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 
 /* 获取当前层级列表：navPath决定到第几层 */
@@ -1372,11 +1454,27 @@ function safeStr(v){
 function doSearch(){
   const q=searchInput.value.trim().toLowerCase();
   if(!q){searchPanel.classList.remove('show');return;}
+  // 数据源自愈：万一 data 不是数组，尝试从本地重新加载，避免"搜不到"却无提示
+  if(!Array.isArray(data)){
+    try{
+      const raw=localStorage.getItem(K_DATA);
+      const p=raw?JSON.parse(raw):null;
+      let arr = p;
+      if(arr && !Array.isArray(arr) && Array.isArray(arr.data)) arr = arr.data;
+      if(arr && !Array.isArray(arr) && Array.isArray(arr.tree)) arr = arr.tree;
+      if(Array.isArray(arr)){ data=arr; migrateData(data); }
+    }catch(_){}
+  }
+  if(!Array.isArray(data)){
+    searchPanel.innerHTML='<div class="sr-empty"><i class="bi bi-exclamation-triangle"></i> 数据未正确加载，请刷新页面或重新导入数据。</div>';
+    searchPanel.classList.add('show');
+    return;
+  }
   let res=[];
   try{ res=searchTree(q); }
   catch(e){
     console.error('搜索出错',e);
-    searchPanel.innerHTML='<div class="sr-empty"><i class="bi bi-exclamation-triangle"></i> 数据中存在异常内容，已跳过。请尝试其他关键词。</div>';
+    searchPanel.innerHTML='<div class="sr-empty"><i class="bi bi-exclamation-triangle"></i> 搜索出错：'+(e.message||'未知错误')+'</div>';
     searchPanel.classList.add('show');
     return;
   }
@@ -1419,7 +1517,7 @@ function doSearch(){
 function collectAll(list,path,lv){
   // 无条件收集整棵子树
   let r=[];
-  for(const it of (list||[])){
+  for(const it of (Array.isArray(list)?list:[])){
     if(!it||typeof it!=='object')continue;
     const title=safeStr(it.t);
     const p=path?`${path} / ${title}`:title;
@@ -1433,9 +1531,12 @@ function collectAll(list,path,lv){
   return r;
 }
 function searchTree(q,list,path,lv){
-  list=list||[];
+  list=Array.isArray(list)?list:[];
   path=path||'';
   lv=lv||1;
+  // 统一转小写：调用方若忘记转换也不会漏搜（大写字母也能搜到）
+  q=String(q||'').toLowerCase();
+  const qDigits=q.replace(/\D/g,'');
   let r=[];
   for(const it of list){
     if(!it||typeof it!=='object')continue;
@@ -1451,7 +1552,9 @@ function searchTree(q,list,path,lv){
     const pm=ph.toLowerCase().includes(q);
     const nm=note.toLowerCase().includes(q);
     const gm=tags.some(t=>t.toLowerCase().includes(q));
-    const selfHit=tm||pm||nm||gm;
+    // 电话去除非数字后再比一次：输 13800138000 也能搜到 138-0013-8000
+    const pm2=qDigits.length>=3 && ph.replace(/\D/g,'').includes(qDigits);
+    const selfHit=tm||pm||pm2||nm||gm;
 
     if(selfHit){
       // 命中：把自己和整棵子树全部列出（这样搜"置地"能看到里面所有客户）
@@ -1781,8 +1884,11 @@ window.addEventListener('popstate',function(e){
 // 初始化：检查登录状态
 // data先加载本地缓存，登录后从云端同步
 data = loadAndInit();
+if(!Array.isArray(data)) data = defaultData();   // 最终兜底，绝不留下非数组
+render();                                        // 先把本地数据显示出来，不等云端
 checkAuth();
 console.log('%c客户管理工作台 v5 云端版已启动','color:#0ea5e9;font-weight:bold;');
+console.log('%c[数据自检] 当前区域数: ' + (Array.isArray(data)?data.length:'数据异常') + ' | 客户数: ' + countBy(data,5), 'color:#10b981');
 </script>
 </body>
 </html>
